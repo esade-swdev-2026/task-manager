@@ -1,22 +1,14 @@
-# app
+# Task Manager
 
-> **First thing: rename `app` to your project.** It appears in this file, in
-> `pyproject.toml` (`name`, `[project.scripts]`, `[tool.hatch.build.targets.wheel]`),
-> in the folder `src/app/`, and in the imports under `tests/`. Session 5's lab walks
-> you through it.
-
-One or two sentences on what your program does and who it is for.
+A simple command-line tool for managing tasks. It allows users to add tasks and assign a priority to each task.
 
 ## Install
 
-```
-uv sync
-```
+Install the project and its dependencies with:
 
-This creates a virtual environment and installs everything, including the development
-tools, from `uv.lock` — the committed file that pins exact versions so every teammate
-and CI resolve the same ones. When you change a dependency in `pyproject.toml`, run
-`uv lock` and commit the updated `uv.lock`; CI fails if the two disagree.
+```bash
+uv sync
+
 
 ## Run
 
@@ -41,7 +33,7 @@ If they pass here, CI passes.
 ## Layout
 
 ```
-src/app/          your package — importable, installable, not just a script
+src/task_manager/          your package — importable, installable, not just a script
   cli.py          the typer command-line interface
   __main__.py     lets `python -m app` work
 tests/            pytest tests, mirroring src/
