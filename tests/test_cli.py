@@ -1,28 +1,25 @@
 from typer.testing import CliRunner
 
-from app.cli import app
+from task_manager.cli import app, tasks
 
 runner = CliRunner()
 
+def test_add_task_default_priority() -> None:
+    tasks.clear()
 
-def test_greet_says_hello() -> None:
-    result = runner.invoke(app, ["greet", "Ada"])
+    result = runner.invoke(app, ["add", "Study Finance"])
+
     assert result.exit_code == 0
-    assert "Hello, Ada!" in result.stdout
+    assert tasks[0]["title"] == "Study Finance"
+    assert tasks[0]["priority"] == "medium"
 
 
-def test_greet_repeats_with_count() -> None:
-    result = runner.invoke(app, ["greet", "Ada", "--count", "3"])
+def test_add_task_high_priority() -> None:
+    tasks.clear()
+
+    result = runner.invoke(app, ["add", "Study Finance", "--priority", "high"])
+
     assert result.exit_code == 0
-    assert result.stdout.count("Hello, Ada!") == 3
+    assert tasks[0]["title"] == "Study Finance"
+    assert tasks[0]["priority"] == "high"
 
-
-def test_greet_rejects_bad_count() -> None:
-    result = runner.invoke(app, ["greet", "Ada", "--count", "0"])
-    assert result.exit_code == 1
-
-
-def test_bye_says_goodbye() -> None:
-    result = runner.invoke(app, ["bye", "Ada"])
-    assert result.exit_code == 0
-    assert "Goodbye, Ada." in result.stdout
