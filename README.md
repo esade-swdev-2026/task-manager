@@ -39,3 +39,6 @@ src/task_manager/          your package — importable, installable, not just a 
 tests/            pytest tests, mirroring src/
 pyproject.toml    dependencies and tool configuration — the single source of truth
 ```
+## I/O Shell
+
+The project's I/O is located in `src/task_manager/cli.py`, where user-facing output is handled with `typer.echo`.
