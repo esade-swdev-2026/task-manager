@@ -10,16 +10,20 @@ def test_add_task() -> None:
     assert task.priority == "high"
     assert tasks == [task]
 
+
 def test_view_tasks() -> None:
     tasks = [
         Task("Study Finance", "high"),
-        Task("Buy groceries", "medium"),]
+        Task("Buy groceries", "medium"),
+    ]
 
     result = view_tasks(tasks)
 
     assert result == [
         "1. Study Finance - high",
-        "2. Buy groceries - medium", ]
+        "2. Buy groceries - medium",
+    ]
+
 
 def test_view_tasks_empty() -> None:
     tasks: list[Task] = []

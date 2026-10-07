@@ -6,6 +6,7 @@ from task_manager.tasks import Task, add_task, view_tasks
 app = typer.Typer(help="A command-line tool for managing tasks.")
 tasks: list[Task] = []
 
+
 @app.callback()
 def main() -> None:
     """Manage your tasks"""
@@ -27,6 +28,7 @@ def list_tasks() -> None:
 
     for line in lines:
         typer.echo(line)
+
 
 if __name__ == "__main__":
     app()
