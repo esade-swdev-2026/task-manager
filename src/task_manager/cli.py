@@ -1,8 +1,10 @@
+# Imperative shell:
 import typer
 
-app = typer.Typer(help="A command-line tool for managing tasks.")
-tasks: list[dict[str, str]] = []
+from task_manager.tasks import Task, add_task
 
+app = typer.Typer(help="A command-line tool for managing tasks.")
+tasks: list[Task] = []
 
 @app.callback()
 def main() -> None:
@@ -11,10 +13,8 @@ def main() -> None:
 
 @app.command()
 def add(title: str, priority: str = "medium") -> None:
-    task = {"title": title, "priority": priority}
-    tasks.append(task)
-    typer.echo(f"Added {title} with {priority} priority")
-
+    task = add_task(tasks, title, priority)
+    typer.echo(f"Added {task.title} with {task.priority} priority")
 
 if __name__ == "__main__":
     app()
