@@ -1,6 +1,6 @@
 # Task Manager
 
-A simple command-line tool for managing tasks. It allows users to add tasks and assign a priority to each task.
+A simple command-line tool for managing tasks. It allows users to add tasks, assign a priority, and view all current tasks.
 
 ## Install
 
@@ -14,8 +14,10 @@ uv sync
 
 ```
 uv run app --help
-uv run app greet World
-uv run app greet World --count 3
+uv run app add "Study Finance"
+uv run app add "Study Finance" --priority high
+uv run app list
+
 ```
 
 ## Develop
@@ -33,12 +35,20 @@ If they pass here, CI passes.
 ## Layout
 
 ```
-src/task_manager/          your package — importable, installable, not just a script
-  cli.py          the typer command-line interface
-  __main__.py     lets `python -m app` work
-tests/            pytest tests, mirroring src/
-pyproject.toml    dependencies and tool configuration — the single source of truth
+src/task_manager/
+    cli.py          the Typer command-line interface / imperative shell
+    tasks.py        the functional core with Task and task logic
+    __main__.py     starts the application
+
+tests/
+    test_cli.py     tests the CLI commands
+    test_tasks.py   tests the functional core
+
+pyproject.toml      dependencies and tool configuration
+
 ```
 ## I/O Shell
 
 The project's I/O is located in `src/task_manager/cli.py`, where user-facing output is handled with `typer.echo`.
+
+The task data and business logic are located in `src/task_manager/tasks.py`.
