@@ -1,6 +1,7 @@
 from typer.testing import CliRunner
 
 from task_manager.cli import app, tasks
+from task_manager.tasks import Task
 
 runner = CliRunner()
 
@@ -23,3 +24,24 @@ def test_add_task_high_priority() -> None:
     assert result.exit_code == 0
     assert tasks[0].title == "Study Finance"
     assert tasks[0].priority == "high"
+
+
+def test_list_tasks() -> None:
+    tasks.clear()
+    tasks.append(Task("Study Finance", "high"))
+    tasks.append(Task("Buy groceries", "medium"))
+
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    assert "1. Study Finance - high" in result.output
+    assert "2. Buy groceries - medium" in result.output
+
+
+def test_list_tasks_empty() -> None:
+    tasks.clear()
+
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    assert "No tasks found." in result.output
