@@ -19,7 +19,7 @@ PRIORITY_ORDER = {
 
 @dataclass(frozen=True)
 class Task:
-    """A task with a title and priority."""
+    """A task with a title, priority and due-date."""
 
     title: str
     priority: str = "medium"
@@ -135,3 +135,19 @@ def count_tasks_by_priority(tasks: list[Task]) -> dict[str, int]:
         elif task.priority == "low":
             count_of_prioties["low"] += 1
     return count_of_prioties
+
+
+def sort_tasks_by_due_date(tasks: list[Task]) -> list[Task]:
+    return sorted(tasks, key=lambda task: (task.due_date == "", task.due_date))
+
+
+def remove_duplicate_tasks(tasks: list[Task]) -> list[Task]:
+    seen: set[Task] = set()
+    unique: list[Task] = []
+
+    for task in tasks:
+        if task not in seen:
+            seen.add(task)
+            unique.append(task)
+
+    return unique
