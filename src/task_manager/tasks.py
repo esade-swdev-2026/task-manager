@@ -1,65 +1,15 @@
-# Functional core
-import csv
-import datetime
-from dataclasses import dataclass
-
-TITLE = 0
-PRIORITY = 1
-DUE_DATE = 2
-FIELDS_PER_ROW = 3
-
-VALID_PRIORITIES = ("low", "medium", "high")
+from task_manager.models import Task
+from task_manager.validation import (
+    normalize_due_date,
+    normalize_priority,
+    normalize_title,
+)
 
 PRIORITY_ORDER = {
     "high": 0,
     "medium": 1,
     "low": 2,
 }
-
-
-@dataclass(frozen=True)
-class Task:
-    """A task with a title, priority and due-date."""
-
-    title: str
-    priority: str = "medium"
-    due_date: str = ""
-
-
-def normalize_due_date(due_date: str) -> str:
-    normalized_due_date = due_date.strip()
-
-    if normalized_due_date == "":
-        return ""
-
-    try:
-        parsed_date = datetime.date.fromisoformat(normalized_due_date)
-    except ValueError:
-        raise ValueError("Due date must use YYYY-MM-DD.") from None
-
-    if parsed_date.isoformat() != normalized_due_date:
-        raise ValueError("Due date must use YYYY-MM-DD.")
-
-    return normalized_due_date
-
-
-def normalize_title(title: str) -> str:
-    normalized_title = title.strip()
-
-    if normalized_title == "":
-        raise ValueError("Title cannot be empty.")
-
-    return normalized_title
-
-
-def normalize_priority(priority: str) -> str:
-    normalized_priority = priority.strip().lower()
-
-    if normalized_priority not in VALID_PRIORITIES:
-        allowed = ", ".join(VALID_PRIORITIES)
-        raise ValueError(f"Priority must be one of: {allowed}.")
-
-    return normalized_priority
 
 
 def create_task(
@@ -74,32 +24,6 @@ def create_task(
     )
 
 
-def read_tasks(path: str) -> list[Task]:
-    tasks: list[Task] = []
-
-    with open(path) as handle:
-        reader = csv.reader(handle)
-        next(reader)
-
-        for row in reader:
-            if len(row) == FIELDS_PER_ROW:
-                tasks.append(
-                    create_task(
-                        title=row[TITLE],
-                        priority=row[PRIORITY],
-                        due_date=row[DUE_DATE],
-                    )
-                )
-
-    return tasks
-
-
-def sort_tasks_by_priority(tasks: list[Task]) -> list[Task]:
-    ordered = list(tasks)
-    ordered.sort(key=lambda task: PRIORITY_ORDER[task.priority])
-    return ordered
-
-
 def add_task(
     tasks: list[Task],
     title: str,
@@ -111,43 +35,63 @@ def add_task(
     return task
 
 
-def view_tasks(tasks: list[Task]) -> list[str]:
-    lines: list[str] = []
-
-    for index, task in enumerate(tasks, start=1):
-        line = f"{index}. {task.title} - {task.priority}"
-
-        if task.due_date != "":
-            line = f"{line} - due {task.due_date}"
-
-        lines.append(line)
-
-    return lines
+def sort_tasks_by_priority(
+    tasks: list[Task],
+) -> list[Task]:
+    ordered = list(tasks)
+    ordered.sort(key=lambda task: PRIORITY_ORDER[task.priority])
+    return ordered
 
 
-def count_tasks_by_priority(tasks: list[Task]) -> dict[str, int]:
-    count_of_prioties = {"high": 0, "medium": 0, "low": 0}
-    for task in tasks:
-        if task.priority == "high":
-            count_of_prioties["high"] += 1
-        elif task.priority == "medium":
-            count_of_prioties["medium"] += 1
-        elif task.priority == "low":
-            count_of_prioties["low"] += 1
-    return count_of_prioties
+def sort_tasks_by_due_date(
+    tasks: list[Task],
+) -> list[Task]:
+    return sorted(
+        tasks,
+        key=lambda task: (
+            task.due_date == "",
+            task.due_date,
+        ),
+    )
 
 
-def sort_tasks_by_due_date(tasks: list[Task]) -> list[Task]:
-    return sorted(tasks, key=lambda task: (task.due_date == "", task.due_date))
-
-
-def remove_duplicate_tasks(tasks: list[Task]) -> list[Task]:
-    seen: set[Task] = set()
-    unique: list[Task] = []
+def count_tasks_by_priority(
+    tasks: list[Task],
+) -> dict[str, int]:
+    count_of_priorities = {
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+    }
 
     for task in tasks:
-        if task not in seen:
-            seen.add(task)
-            unique.append(task)
+        count_of_priorities[task.priority] += 1
 
-    return unique
+    return count_of_priorities
+
+
+def remove_duplicate_tasks(
+    tasks: list[Task],
+) -> list[Task]:
+    return list(dict.fromkeys(tasks))
+
+
+def is_duplicate(
+    new_task: Task,
+    tasks: list[Task],
+) -> bool:
+    return new_task in tasks
+
+
+def delete_task(
+    tasks: list[Task],
+    task_number: int,
+) -> tuple[Task, list[Task]]:
+    if task_number < 1 or task_number > len(tasks):
+        raise ValueError("Task number does not exist.")
+
+    remaining_tasks = list(tasks)
+
+    deleted_task = remaining_tasks.pop(task_number - 1)
+
+    return deleted_task, remaining_tasks

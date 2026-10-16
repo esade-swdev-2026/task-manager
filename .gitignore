@@ -8,4 +8,4 @@ build/
 .ruff_cache/
 .pytest_cache/
 .coverage
-data/
+storage_tasks/

@@ -1,24 +1,32 @@
-# Imperative shell:
-import csv
 from pathlib import Path
 
 import typer
 
+from task_manager.formatting import view_tasks
+from task_manager.models import Task
+from task_manager.storage import (
+    append_task,
+    read_tasks,
+    write_tasks,
+)
 from task_manager.tasks import (
     create_task,
-    read_tasks,
+    delete_task,
+    is_duplicate,
+    sort_tasks_by_due_date,
     sort_tasks_by_priority,
-    view_tasks,
 )
 
-DATA_FILE = Path("data") / "tasks.csv"
+DATA_FILE = Path("storage_tasks") / "tasks.csv"
+
+SORT_OPTIONS = ("priority", "date")
 
 app = typer.Typer(help="A command-line tool for managing tasks.")
 
 
 @app.callback()
 def main() -> None:
-    """Manage your tasks"""
+    """Manage your tasks."""
 
 
 @app.command()
@@ -33,47 +41,149 @@ def add(
         help="Due date in YYYY-MM-DD format.",
     ),
 ) -> None:
-
     try:
-        task = create_task(title, priority, due_date)
+        task = create_task(
+            title,
+            priority,
+            due_date,
+        )
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
-    DATA_FILE.parent.mkdir(exist_ok=True)
-    is_new = not DATA_FILE.exists()
+    existing_tasks: list[Task] = []
 
-    with DATA_FILE.open("a", newline="") as handle:
-        writer = csv.writer(handle)
+    if DATA_FILE.exists():
+        try:
+            existing_tasks = read_tasks(DATA_FILE)
+        except (OSError, ValueError):
+            typer.echo(
+                f"could not read {DATA_FILE}",
+                err=True,
+            )
+            raise typer.Exit(1) from None
 
-        if is_new:
-            writer.writerow(["title", "priority", "due_date"])
+    if is_duplicate(task, existing_tasks):
+        typer.echo(
+            "Task already exists.",
+            err=True,
+        )
+        raise typer.Exit(1)
 
-        writer.writerow([task.title, task.priority, task.due_date])
+    try:
+        append_task(DATA_FILE, task)
+    except OSError:
+        typer.echo(
+            f"could not write {DATA_FILE}",
+            err=True,
+        )
+        raise typer.Exit(1) from None
 
-    print(f"added {task.title} with {task.priority} priority to {DATA_FILE}")
+    typer.echo(f"added {task.title} with {task.priority} priority to {DATA_FILE}")
 
 
 @app.command("list")
-def list_tasks() -> None:
+def list_tasks(
+    sort_by: str = typer.Option(
+        "priority",
+        help="Sort tasks by priority or date.",
+    ),
+) -> None:
+    normalized_sort = sort_by.strip().lower()
+
+    if normalized_sort not in SORT_OPTIONS:
+        allowed = ", ".join(SORT_OPTIONS)
+        typer.echo(
+            f"Sort must be one of: {allowed}.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
     if not DATA_FILE.exists():
-        print("No tasks found.")
+        typer.echo("No tasks found.")
         return
+
     try:
-        tasks = read_tasks(str(DATA_FILE))
+        tasks = read_tasks(DATA_FILE)
     except (OSError, ValueError):
-        typer.echo(f"could not read {DATA_FILE}", err=True)
+        typer.echo(
+            f"could not read {DATA_FILE}",
+            err=True,
+        )
         raise typer.Exit(1) from None
 
-    tasks = sort_tasks_by_priority(tasks)
+    if normalized_sort == "date":
+        tasks = sort_tasks_by_due_date(tasks)
+    else:
+        tasks = sort_tasks_by_priority(tasks)
+
     lines = view_tasks(tasks)
 
     if not lines:
-        print("No tasks found.")
+        typer.echo("No tasks found.")
         return
 
     for line in lines:
-        print(line)
+        typer.echo(line)
+
+
+@app.command()
+def delete() -> None:
+    if not DATA_FILE.exists():
+        typer.echo(
+            "No tasks found.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        tasks = read_tasks(DATA_FILE)
+    except (OSError, ValueError):
+        typer.echo(
+            f"could not read {DATA_FILE}",
+            err=True,
+        )
+        raise typer.Exit(1) from None
+
+    tasks = sort_tasks_by_priority(tasks)
+
+    if not tasks:
+        typer.echo(
+            "No tasks found.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    for line in view_tasks(tasks):
+        typer.echo(line)
+
+    task_number = typer.prompt(
+        "Task number to delete",
+        type=int,
+    )
+
+    try:
+        deleted_task, remaining_tasks = delete_task(tasks, task_number)
+    except ValueError as error:
+        typer.echo(
+            str(error),
+            err=True,
+        )
+        raise typer.Exit(1) from None
+
+    try:
+        write_tasks(
+            DATA_FILE,
+            remaining_tasks,
+        )
+    except OSError:
+        typer.echo(
+            f"could not write {DATA_FILE}",
+            err=True,
+        )
+        raise typer.Exit(1) from None
+
+    typer.echo(f"deleted {deleted_task.title}")
 
 
 if __name__ == "__main__":
