@@ -10,17 +10,10 @@ from task_manager.storage import read_tasks
 runner = CliRunner()
 
 
-def test_add_task_default_priority(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_add_task_default_priority(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(
-        app,
-        ["add", "Study Finance"],
-    )
-
+    result = runner.invoke(app, ["add", "Study Finance"])
     saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
 
     assert result.exit_code == 0
@@ -35,32 +28,16 @@ def test_add_task_with_priority_and_due_date(
 
     result = runner.invoke(
         app,
-        [
-            "add",
-            "Submit assignment",
-            "--priority",
-            "high",
-            "--due-date",
-            "2026-10-18",
-        ],
+        ["add", "Submit assignment", "--priority", "high", "--due-date", "2026-10-18"],
     )
 
     saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
 
     assert result.exit_code == 0
-    assert saved_tasks == [
-        Task(
-            "Submit assignment",
-            "high",
-            "2026-10-18",
-        )
-    ]
+    assert saved_tasks == [Task("Submit assignment", "high", "2026-10-18")]
 
 
-def test_duplicate_task_is_not_saved(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_duplicate_task_is_not_saved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
     arguments = [
@@ -80,38 +57,15 @@ def test_duplicate_task_is_not_saved(
     assert first.exit_code == 0
     assert duplicate.exit_code == 1
     assert "Task already exists." in duplicate.stderr
-    assert saved_tasks == [
-        Task(
-            "Study Finance",
-            "high",
-            "2026-10-20",
-        )
-    ]
+    assert saved_tasks == [Task("Study Finance", "high", "2026-10-20")]
 
 
-def test_list_tasks_are_sorted_by_priority(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_list_tasks_are_sorted_by_priority(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
-    runner.invoke(
-        app,
-        ["add", "Low task", "--priority", "low"],
-    )
-    runner.invoke(
-        app,
-        ["add", "High task", "--priority", "high"],
-    )
-    runner.invoke(
-        app,
-        [
-            "add",
-            "Medium task",
-            "--priority",
-            "medium",
-        ],
-    )
+    runner.invoke(app, ["add", "Low task", "--priority", "low"])
+    runner.invoke(app, ["add", "High task", "--priority", "high"])
+    runner.invoke(app, ["add", "Medium task", "--priority", "medium"])
 
     result = runner.invoke(app, ["list"])
 
@@ -123,10 +77,7 @@ def test_list_tasks_are_sorted_by_priority(
     ]
 
 
-def test_list_tasks_empty(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_list_tasks_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(app, ["list"])
@@ -135,42 +86,20 @@ def test_list_tasks_empty(
     assert "No tasks found." in result.output
 
 
-def test_invalid_priority_has_no_traceback(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_invalid_priority_has_no_traceback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(
-        app,
-        [
-            "add",
-            "Impossible task",
-            "--priority",
-            "urgent",
-        ],
-    )
+    result = runner.invoke(app, ["add", "Impossible task", "--priority", "urgent"])
 
     assert result.exit_code == 1
     assert "Priority must be one of: low, medium, high." in result.stderr
     assert "Traceback" not in result.output
 
 
-def test_invalid_due_date_has_no_traceback(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_invalid_due_date_has_no_traceback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(
-        app,
-        [
-            "add",
-            "Impossible task",
-            "--due-date",
-            "18-10-2026",
-        ],
-    )
+    result = runner.invoke(app, ["add", "Impossible task", "--due-date", "18-10-2026"])
 
     assert result.exit_code == 1
     assert "Due date must use YYYY-MM-DD." in result.stderr
@@ -183,31 +112,10 @@ def test_delete_removes_task_shown_by_list_number(
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    runner.invoke(
-        app,
-        [
-            "add",
-            "Low task",
-            "--priority",
-            "low",
-        ],
-    )
-    runner.invoke(
-        app,
-        [
-            "add",
-            "High task",
-            "--priority",
-            "high",
-        ],
-    )
+    runner.invoke(app, ["add", "Low task", "--priority", "low"])
+    runner.invoke(app, ["add", "High task", "--priority", "high"])
 
-    result = runner.invoke(
-        app,
-        ["delete"],
-        input="1\n",
-    )
-
+    result = runner.invoke(app, ["delete"], input="1\n")
     saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
 
     assert result.exit_code == 0
@@ -217,68 +125,30 @@ def test_delete_removes_task_shown_by_list_number(
     assert saved_tasks == [Task("Low task", "low")]
 
 
-def test_delete_when_no_tasks_exist(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_delete_when_no_tasks_exist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(
-        app,
-        ["delete"],
-    )
+    result = runner.invoke(app, ["delete"])
 
     assert result.exit_code == 1
     assert "No tasks found." in result.stderr
     assert "Traceback" not in result.output
 
 
-def test_list_tasks_are_sorted_by_due_date(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_list_tasks_are_sorted_by_due_date(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
+    runner.invoke(app, ["add", "No date task", "--priority", "high"])
     runner.invoke(
         app,
-        [
-            "add",
-            "No date task",
-            "--priority",
-            "high",
-        ],
+        ["add", "Late task", "--priority", "high", "--due-date", "2026-12-01"],
     )
     runner.invoke(
         app,
-        [
-            "add",
-            "Late task",
-            "--priority",
-            "high",
-            "--due-date",
-            "2026-12-01",
-        ],
-    )
-    runner.invoke(
-        app,
-        [
-            "add",
-            "Early task",
-            "--priority",
-            "low",
-            "--due-date",
-            "2026-10-01",
-        ],
+        ["add", "Early task", "--priority", "low", "--due-date", "2026-10-01"],
     )
 
-    result = runner.invoke(
-        app,
-        [
-            "list",
-            "--sort-by",
-            "date",
-        ],
-    )
+    result = runner.invoke(app, ["list", "--sort-by", "date"])
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
@@ -288,20 +158,10 @@ def test_list_tasks_are_sorted_by_due_date(
     ]
 
 
-def test_list_rejects_invalid_sort_option(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_list_rejects_invalid_sort_option(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(
-        app,
-        [
-            "list",
-            "--sort-by",
-            "name",
-        ],
-    )
+    result = runner.invoke(app, ["list", "--sort-by", "name"])
 
     assert result.exit_code == 1
     assert "Sort must be one of: priority, date." in result.stderr
