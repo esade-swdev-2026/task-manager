@@ -1,5 +1,7 @@
 import datetime
 
+from task_manager.models import EmptyTitleError, InvalidDueDate, InvalidPriority
+
 VALID_PRIORITIES = ("low", "medium", "high")
 
 
@@ -7,7 +9,7 @@ def normalize_title(title: str) -> str:
     normalized_title = title.strip()
 
     if normalized_title == "":
-        raise ValueError("Title cannot be empty.")
+        raise EmptyTitleError("Title cannot be empty.")
 
     return normalized_title
 
@@ -17,7 +19,7 @@ def normalize_priority(priority: str) -> str:
 
     if normalized_priority not in VALID_PRIORITIES:
         allowed = ", ".join(VALID_PRIORITIES)
-        raise ValueError(f"Priority must be one of: {allowed}.")
+        raise InvalidPriority(f"Priority must be one of: {allowed}.")
 
     return normalized_priority
 
@@ -31,9 +33,9 @@ def normalize_due_date(due_date: str) -> str:
     try:
         parsed_date = datetime.date.fromisoformat(normalized_due_date)
     except ValueError:
-        raise ValueError("Due date must use YYYY-MM-DD.") from None
+        raise InvalidDueDate("Due date must use YYYY-MM-DD.") from None
 
     if parsed_date.isoformat() != normalized_due_date:
-        raise ValueError("Due date must use YYYY-MM-DD.")
+        raise InvalidDueDate("Due date must use YYYY-MM-DD.")
 
     return normalized_due_date

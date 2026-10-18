@@ -1,4 +1,4 @@
-from task_manager.models import Task
+from task_manager.models import InvalidNumberTasks, Task
 from task_manager.validation import normalize_due_date, normalize_priority, normalize_title
 
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
@@ -52,7 +52,7 @@ def is_duplicate(new_task: Task, tasks: list[Task]) -> bool:
 
 def delete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
     if task_number < 1 or task_number > len(tasks):
-        raise ValueError("Task number does not exist.")
+        raise InvalidNumberTasks("Task number does not exist.")
 
     remaining_tasks = list(tasks)
 

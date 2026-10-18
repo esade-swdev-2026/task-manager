@@ -8,3 +8,27 @@ class Task:
     title: str
     priority: str = "medium"
     due_date: str = ""
+
+
+class EmptyTitleError(ValueError):
+    pass
+
+
+class TaskNotFoundError(LookupError):
+    pass
+
+
+class DuplicateTaskError(ValueError):
+    pass
+
+
+class InvalidPriority(ValueError):
+    pass
+
+
+class InvalidDueDate(ValueError):
+    pass
+
+
+class InvalidNumberTasks(ValueError):
+    pass

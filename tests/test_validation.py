@@ -1,5 +1,6 @@
 import pytest
 
+from task_manager.models import EmptyTitleError, InvalidDueDate, InvalidPriority
 from task_manager.validation import normalize_due_date, normalize_priority, normalize_title
 
 
@@ -8,7 +9,7 @@ def test_title_is_stripped() -> None:
 
 
 def test_empty_title_is_rejected() -> None:
-    with pytest.raises(ValueError, match="Title cannot be empty"):
+    with pytest.raises(EmptyTitleError, match="Title cannot be empty"):
         normalize_title("   ")
 
 
@@ -17,7 +18,7 @@ def test_priority_is_stripped_and_lowercase() -> None:
 
 
 def test_invalid_priority_is_rejected() -> None:
-    with pytest.raises(ValueError, match="Priority must be one of"):
+    with pytest.raises(InvalidPriority, match="Priority must be one of"):
         normalize_priority("urgent")
 
 
@@ -30,5 +31,5 @@ def test_valid_due_date_is_kept() -> None:
 
 
 def test_invalid_due_date_is_rejected() -> None:
-    with pytest.raises(ValueError, match="Due date must use YYYY-MM-DD"):
+    with pytest.raises(InvalidDueDate, match="Due date must use YYYY-MM-DD"):
         normalize_due_date("18-10-2026")

@@ -1,6 +1,12 @@
 import pytest
 
-from task_manager.models import Task
+from task_manager.models import (
+    EmptyTitleError,
+    InvalidDueDate,
+    InvalidNumberTasks,
+    InvalidPriority,
+    Task,
+)
 from task_manager.tasks import (
     add_task,
     count_tasks_by_priority,
@@ -29,17 +35,17 @@ def test_create_task_normalizes_values() -> None:
 
 
 def test_create_task_rejects_empty_title() -> None:
-    with pytest.raises(ValueError, match="Title cannot be empty"):
+    with pytest.raises(EmptyTitleError, match="Title cannot be empty"):
         create_task("   ")
 
 
 def test_create_task_rejects_invalid_priority() -> None:
-    with pytest.raises(ValueError, match="Priority must be one of"):
+    with pytest.raises(InvalidPriority, match="Priority must be one of"):
         create_task("Study Finance", "urgent")
 
 
 def test_create_task_rejects_invalid_due_date() -> None:
-    with pytest.raises(ValueError, match="Due date must use YYYY-MM-DD"):
+    with pytest.raises(InvalidDueDate, match="Due date must use YYYY-MM-DD"):
         create_task("Study Finance", due_date="01-12-2026")
 
 
@@ -201,12 +207,12 @@ def test_delete_task_returns_deleted_and_remaining_tasks() -> None:
 def test_delete_task_rejects_zero() -> None:
     tasks = [FINANCE, GROCERIES]
 
-    with pytest.raises(ValueError, match="Task number does not exist"):
+    with pytest.raises(InvalidNumberTasks, match="Task number does not exist"):
         delete_task(tasks, 0)
 
 
 def test_delete_task_rejects_number_too_large() -> None:
     tasks = [FINANCE, GROCERIES]
 
-    with pytest.raises(ValueError, match="Task number does not exist"):
+    with pytest.raises(InvalidNumberTasks, match="Task number does not exist"):
         delete_task(tasks, 3)
