@@ -55,3 +55,14 @@ def write_tasks(path: Path, tasks: list[Task]) -> None:
 
         for task in tasks:
             writer.writerow([task.title, task.priority, task.due_date])
+
+
+def delete_task(path: Path, task_number: int) -> None:
+    """Delete a stored task by its number, starting at 1."""
+    tasks = read_tasks(path)
+
+    if task_number < 1 or task_number > len(tasks):
+        raise ValueError("Task number out of range.")
+
+    del tasks[task_number - 1]
+    write_tasks(path, tasks)
