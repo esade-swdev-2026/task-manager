@@ -59,3 +59,7 @@ def delete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
     deleted_task = remaining_tasks.pop(task_number - 1)
 
     return deleted_task, remaining_tasks
+
+
+def search_tasks(tasks: list[Task], keyword: str) -> list[Task]:
+    return [task for task in tasks if keyword.lower() in task.title.lower()]
