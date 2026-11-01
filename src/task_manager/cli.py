@@ -6,6 +6,7 @@ from task_manager.formatting import view_tasks
 from task_manager.models import Task
 from task_manager.storage import append_task, read_tasks, write_tasks
 from task_manager.tasks import (
+    count_tasks_by_priority,
     create_task,
     delete_task,
     is_duplicate,
@@ -140,6 +141,36 @@ def delete() -> None:
         raise typer.Exit(1) from None
 
     typer.echo(f"deleted {deleted_task.title}")
+
+
+@app.command()
+def priority() -> None:
+    if not DATA_FILE.exists():
+        typer.echo("No tasks found.")
+        return
+
+    try:
+        tasks = read_tasks(DATA_FILE)
+    except (OSError, ValueError):
+        typer.echo(f"could not read {DATA_FILE}", err=True)
+        raise typer.Exit(1) from None
+
+    counts = count_tasks_by_priority(tasks)
+
+    typer.echo("Tasks by priority:")
+    for priority_level in ("high", "medium", "low"):
+        typer.echo(f"{priority_level.capitalize()}: {counts[priority_level]}")
+
+    if not tasks:
+        typer.echo("No tasks found.")
+        return
+
+    sorted_tasks = sort_tasks_by_priority(tasks)
+
+    typer.echo("\nTasks sorted by priority:")
+
+    for line in view_tasks(sorted_tasks):
+        typer.echo(line)
 
 
 if __name__ == "__main__":

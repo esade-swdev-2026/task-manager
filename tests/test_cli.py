@@ -166,3 +166,62 @@ def test_list_rejects_invalid_sort_option(tmp_path: Path, monkeypatch: pytest.Mo
     assert result.exit_code == 1
     assert "Sort must be one of: priority, date." in result.stderr
     assert "Traceback" not in result.output
+
+
+def test_priority_counts_and_sorts_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    runner.invoke(app, ["add", "Low task", "--priority", "low"])
+    runner.invoke(app, ["add", "High task", "--priority", "high"])
+    runner.invoke(app, ["add", "Medium task", "--priority", "medium"])
+    runner.invoke(app, ["add", "Another high task", "--priority", "high"])
+
+    result = runner.invoke(app, ["priority"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "Tasks by priority:",
+        "High: 2",
+        "Medium: 1",
+        "Low: 1",
+        "",
+        "Tasks sorted by priority:",
+        "1. High task - high",
+        "2. Another high task - high",
+        "3. Medium task - medium",
+        "4. Low task - low",
+    ]
+
+
+def test_priority_when_no_tasks_exist(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["priority"])
+
+    assert result.exit_code == 0
+    assert "No tasks found." in result.output
+
+
+def test_priority_with_only_high_priority_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    runner.invoke(app, ["add", "First task", "--priority", "high"])
+    runner.invoke(app, ["add", "Second task", "--priority", "high"])
+
+    result = runner.invoke(app, ["priority"])
+
+    assert result.exit_code == 0
+    assert "High: 2" in result.output
+    assert "Medium: 0" in result.output
+    assert "Low: 0" in result.output
+    assert "1. First task - high" in result.output
+    assert "2. Second task - high" in result.output
