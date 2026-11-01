@@ -254,3 +254,21 @@ def test_search_tasks_no_matches() -> None:
     result = search_tasks(tasks, "exercise")
 
     assert result == []
+
+
+def test_search_tasks_empty_list() -> None:
+    result = search_tasks([], "Python")
+
+    assert result == []
+
+
+def test_search_tasks_partial_keyword() -> None:
+    tasks = [
+        create_task("Study Python"),
+        create_task("Buy groceries"),
+    ]
+
+    result = search_tasks(tasks, "yth")
+
+    assert len(result) == 1
+    assert result[0].title == "Study Python"
