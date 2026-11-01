@@ -14,6 +14,7 @@ from task_manager.tasks import (
     delete_task,
     is_duplicate,
     remove_duplicate_tasks,
+    search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
 )
@@ -216,3 +217,40 @@ def test_delete_task_rejects_number_too_large() -> None:
 
     with pytest.raises(InvalidNumberTasks, match="Task number does not exist"):
         delete_task(tasks, 3)
+
+
+def test_search_tasks_by_keyword() -> None:
+    tasks = [
+        create_task("Study Python"),
+        create_task("Buy groceries"),
+        create_task("Study Finance"),
+    ]
+
+    result = search_tasks(tasks, "Study")
+
+    assert len(result) == 2
+    assert result[0].title == "Study Python"
+    assert result[1].title == "Study Finance"
+
+
+def test_search_tasks_case_insensitive() -> None:
+    tasks = [
+        create_task("Study Python"),
+        create_task("Buy groceries"),
+    ]
+
+    result = search_tasks(tasks, "PYTHON")
+
+    assert len(result) == 1
+    assert result[0].title == "Study Python"
+
+
+def test_search_tasks_no_matches() -> None:
+    tasks = [
+        create_task("Study Python"),
+        create_task("Buy groceries"),
+    ]
+
+    result = search_tasks(tasks, "exercise")
+
+    assert result == []
