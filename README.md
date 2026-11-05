@@ -104,6 +104,20 @@ uv run task-manager delete
 The application displays the current tasks and asks for the number of the task
 to delete. The CSV file is then updated with the remaining tasks.
 
+### Search tasks
+
+Search saved tasks by a keyword in their title:
+
+```bash
+uv run task-manager search "study"
+```
+
+Search is case-insensitive and ignores spaces around the keyword.
+Only matching tasks are displayed. Searching does not change saved data.
+
+If nothing matches, the application displays `No matching tasks found.`
+Blank keywords are rejected.
+
 ## Command reference
 
 | Command | Purpose | Inputs |
@@ -111,6 +125,7 @@ to delete. The CSV file is then updated with the remaining tasks.
 | `add` | Validates and saves a new task. | Required title; optional `--priority` and `--due-date`. |
 | `list` | Displays every saved task. | Optional `--sort-by priority` or `--sort-by date`. |
 | `delete` | Displays the tasks and deletes the selected number. | The task number is requested interactively. |
+| `search` | Searches saved tasks by title, ignoring case. | Required keyword. |
 
 More information about any command is available through `--help`:
 
@@ -118,6 +133,7 @@ More information about any command is available through `--help`:
 uv run task-manager add --help
 uv run task-manager list --help
 uv run task-manager delete --help
+uv run task-manager search --help
 ```
 
 ## Input rules

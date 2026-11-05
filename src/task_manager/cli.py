@@ -10,6 +10,7 @@ from task_manager.tasks import (
     create_task,
     delete_task,
     is_duplicate,
+    search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
 )
@@ -170,6 +171,35 @@ def priority() -> None:
     typer.echo("\nTasks sorted by priority:")
 
     for line in view_tasks(sorted_tasks):
+        typer.echo(line)
+
+
+@app.command()
+def search(keyword: str) -> None:
+    """Search saved tasks by a keyword in their title."""
+    normalized_keyword = keyword.strip()
+
+    if not normalized_keyword:
+        typer.echo("Search keyword cannot be empty.", err=True)
+        raise typer.Exit(1)
+
+    if not DATA_FILE.exists():
+        typer.echo("No tasks found.")
+        return
+
+    try:
+        tasks = read_tasks(DATA_FILE)
+    except (OSError, ValueError):
+        typer.echo(f"could not read {DATA_FILE}", err=True)
+        raise typer.Exit(1) from None
+
+    matching_tasks = search_tasks(tasks, normalized_keyword)
+
+    if not matching_tasks:
+        typer.echo("No matching tasks found.")
+        return
+
+    for line in view_tasks(matching_tasks):
         typer.echo(line)
 
 

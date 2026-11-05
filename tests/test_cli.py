@@ -225,3 +225,64 @@ def test_priority_with_only_high_priority_tasks(
     assert "Low: 0" in result.output
     assert "1. First task - high" in result.output
     assert "2. Second task - high" in result.output
+
+
+def test_search_finds_matches_and_preserves_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Study Python"])
+    runner.invoke(app, ["add", "Buy groceries"])
+    runner.invoke(app, ["add", "Study Finance"])
+
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["search", " STUDY "])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. Study Python - medium",
+        "2. Study Finance - medium",
+    ]
+    assert path.read_bytes() == original_contents
+
+
+def test_search_with_no_matches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Study Python"])
+
+    result = runner.invoke(app, ["search", "exercise"])
+
+    assert result.exit_code == 0
+    assert "No matching tasks found." in result.output
+
+
+def test_search_without_saved_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["search", "Study"])
+
+    assert result.exit_code == 0
+    assert "No tasks found." in result.output
+    assert not Path("storage_tasks/tasks.csv").exists()
+
+
+def test_search_rejects_blank_keyword(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["search", "   "])
+
+    assert result.exit_code == 1
+    assert "Search keyword cannot be empty." in result.stderr
+    assert not Path("storage_tasks/tasks.csv").exists()
