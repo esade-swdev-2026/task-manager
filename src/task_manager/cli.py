@@ -2,6 +2,7 @@ from pathlib import Path
 
 import typer
 
+from task_manager.edit_tasks import edit_task
 from task_manager.formatting import view_tasks
 from task_manager.models import Task
 from task_manager.storage import append_task, read_tasks, write_tasks
@@ -201,6 +202,81 @@ def search(keyword: str) -> None:
 
     for line in view_tasks(matching_tasks):
         typer.echo(line)
+
+
+@app.command()
+def edit(
+    title: str | None = typer.Option(None, help="New task title."),
+    priority: str | None = typer.Option(None, help="New priority: low, medium, or high."),
+    due_date: str | None = typer.Option(
+        None,
+        help="New due date in YYYY-MM-DD format. Use an empty string to clear it.",
+    ),
+) -> None:
+    """Edit a saved task selected by its displayed number."""
+    if title is None and priority is None and due_date is None:
+        typer.echo("Provide at least one field to edit.", err=True)
+        raise typer.Exit(1)
+
+    if not DATA_FILE.exists():
+        typer.echo("No tasks found.", err=True)
+        raise typer.Exit(1)
+
+    try:
+        tasks = read_tasks(DATA_FILE)
+    except (OSError, ValueError):
+        typer.echo(f"could not read {DATA_FILE}", err=True)
+        raise typer.Exit(1) from None
+
+    displayed_tasks = sort_tasks_by_priority(tasks)
+
+    if not tasks:
+        typer.echo("No tasks found.", err=True)
+        raise typer.Exit(1)
+
+    for line in view_tasks(displayed_tasks):
+        typer.echo(line)
+
+    raw_number = typer.prompt("Task number to edit", type=str)
+
+    try:
+        task_number = int(raw_number)
+    except ValueError:
+        typer.echo("Invalid task number.", err=True)
+        raise typer.Exit(1) from None
+
+    if task_number < 1 or task_number > len(displayed_tasks):
+        typer.echo("Task number does not exist.", err=True)
+        raise typer.Exit(1)
+
+    selected_task = displayed_tasks[task_number - 1]
+    task_number = next(index for index, task in enumerate(tasks, start=1) if task is selected_task)
+
+    try:
+        edited_task, updated_tasks = edit_task(
+            tasks,
+            task_number,
+            title=title,
+            priority=priority,
+            due_date=due_date,
+        )
+    except ValueError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from None
+
+    other_tasks = [task for index, task in enumerate(tasks, start=1) if index != task_number]
+
+    if is_duplicate(edited_task, other_tasks):
+        typer.echo("Task already exists.", err=True)
+        raise typer.Exit(1)
+
+    try:
+        write_tasks(DATA_FILE, updated_tasks)
+    except OSError:
+        typer.echo(f"could not write {DATA_FILE}", err=True)
+        raise typer.Exit(1) from None
+
+    typer.echo(f"edited {edited_task.title}")
 
 
 if __name__ == "__main__":

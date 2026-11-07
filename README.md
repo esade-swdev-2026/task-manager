@@ -104,6 +104,7 @@ uv run task-manager delete
 The application displays the current tasks and asks for the number of the task
 to delete. The CSV file is then updated with the remaining tasks.
 
+
 ### Search tasks
 
 Search saved tasks by a keyword in their title:
@@ -118,6 +119,36 @@ Only matching tasks are displayed. Searching does not change saved data.
 If nothing matches, the application displays `No matching tasks found.`
 Blank keywords are rejected.
 
+
+### Edit a task
+
+Provide one or more fields to update:
+
+```bash
+uv run task-manager edit --title "Study Python" --priority high
+```
+
+The application displays tasks in priority order and asks for the number
+of the task to edit. Changes are saved to the CSV file.
+Fields not provided keep their current values.
+
+To change a due date:
+
+```bash
+uv run task-manager edit --due-date 2026-11-10
+```
+
+To remove a due date:
+
+```bash
+uv run task-manager edit --due-date ""
+```
+
+Invalid values, invalid task numbers and changes that would create an
+exact duplicate are rejected without modifying saved data.
+At least one field must be provided.
+
+
 ## Command reference
 
 | Command | Purpose | Inputs |
@@ -126,6 +157,8 @@ Blank keywords are rejected.
 | `list` | Displays every saved task. | Optional `--sort-by priority` or `--sort-by date`. |
 | `delete` | Displays the tasks and deletes the selected number. | The task number is requested interactively. |
 | `search` | Searches saved tasks by title, ignoring case. | Required keyword. |
+| `edit` | Updates a task selected interactively by number. | At least one of `--title`, `--priority` or `--due-date`. |
+
 
 More information about any command is available through `--help`:
 
@@ -134,6 +167,7 @@ uv run task-manager add --help
 uv run task-manager list --help
 uv run task-manager delete --help
 uv run task-manager search --help
+uv run task-manager edit --help
 ```
 
 ## Input rules
@@ -226,6 +260,7 @@ src/task_manager/
     storage.py
     tasks.py
     validation.py
+    edit_tasks.py
 ```
 
 Responsibilities are separated as follows:
@@ -237,6 +272,7 @@ Responsibilities are separated as follows:
 - `storage.py` reads and writes the CSV file.
 - `cli.py` connects the core logic to terminal input and output.
 - `__main__.py` provides the Python module entry point.
+- `edit_tasks.py` contains the logic for editing existing tasks.
 
 This follows a functional core / imperative shell design. Task computations
 work with plain data and return results. File access and terminal output remain

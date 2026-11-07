@@ -227,6 +227,174 @@ def test_priority_with_only_high_priority_tasks(
     assert "2. Second task - high" in result.output
 
 
+def test_edit_updates_selected_task_and_preserves_other_fields(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Low task", "--priority", "low"])
+    runner.invoke(
+        app,
+        ["add", "High task", "--priority", "high", "--due-date", "2026-11-10"],
+    )
+
+    result = runner.invoke(app, ["edit", "--title", "Updated task"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "1. High task - high" in result.output
+    assert read_tasks(Path("storage_tasks/tasks.csv")) == [
+        Task("Low task", "low"),
+        Task("Updated task", "high", "2026-11-10"),
+    ]
+
+
+def test_edit_changes_all_fields(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Original"])
+
+    result = runner.invoke(
+        app,
+        ["edit", "--title", "Updated", "--priority", "high", "--due-date", "2026-11-10"],
+        input="1\n",
+    )
+
+    assert result.exit_code == 0
+    assert read_tasks(Path("storage_tasks/tasks.csv")) == [
+        Task("Updated", "high", "2026-11-10"),
+    ]
+
+
+def test_edit_clears_due_date(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Study", "--due-date", "2026-11-10"])
+
+    result = runner.invoke(app, ["edit", "--due-date", ""], input="1\n")
+
+    assert result.exit_code == 0
+    assert read_tasks(Path("storage_tasks/tasks.csv")) == [Task("Study")]
+
+
+@pytest.mark.parametrize(
+    ("options", "selection", "message"),
+    [
+        (["--title", "Updated"], "0\n", "Task number does not exist."),
+        (["--title", "Updated"], "-1\n", "Task number does not exist."),
+        (["--title", "   "], "1\n", "Title cannot be empty."),
+        (["--priority", "urgent"], "1\n", "Priority must be one of"),
+        (["--due-date", "invalid"], "1\n", "Due date must use YYYY-MM-DD."),
+        (["--title", "Other"], "1\n", "Task already exists."),
+        ([], "", "Provide at least one field to edit."),
+    ],
+)
+def test_edit_rejects_invalid_changes_without_modifying_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    options: list[str],
+    selection: str,
+    message: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Original"])
+    runner.invoke(app, ["add", "Other"])
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["edit", *options], input=selection)
+
+    assert result.exit_code == 1
+    assert message in result.stderr
+    assert path.read_bytes() == original_contents
+
+
+def test_edit_without_saved_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["edit", "--title", "Updated"])
+
+    assert result.exit_code == 1
+    assert "No tasks found." in result.stderr
+    assert not Path("storage_tasks/tasks.csv").exists()
+
+
+def test_edit_priority_preserves_file_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Low", "--priority", "low"])
+    runner.invoke(app, ["add", "High", "--priority", "high"])
+    runner.invoke(app, ["add", "Medium", "--priority", "medium"])
+
+    result = runner.invoke(app, ["edit", "--priority", "low"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "1. High - high" in result.output
+    assert read_tasks(Path("storage_tasks/tasks.csv")) == [
+        Task("Low", "low"),
+        Task("High", "low"),
+        Task("Medium", "medium"),
+    ]
+    displayed = runner.invoke(app, ["priority"])
+    assert "1. Medium - medium" in displayed.output
+    assert "2. Low - low" in displayed.output
+    assert "3. High - low" in displayed.output
+
+
+def test_edit_with_no_task_number_does_not_do_anything(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Original"])
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["edit", "--title", "Updated"])
+
+    assert result.exit_code == 1
+    assert path.read_bytes() == original_contents
+
+
+def test_edit_rejects_text_as_task_number(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Original"])
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["edit", "--title", "Updated"], input="abc\n")
+
+    assert result.exit_code == 1
+    assert "Invalid task number." in result.stderr
+    assert path.read_bytes() == original_contents
+
+
+def test_edit_rejects_task_number_out_of_range(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Original"])
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["edit", "--title", "Updated"], input="2\n")
+
+    assert result.exit_code == 1
+    assert "Task number does not exist." in result.stderr
+    assert path.read_bytes() == original_contents
+
+
 def test_search_finds_matches_and_preserves_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
