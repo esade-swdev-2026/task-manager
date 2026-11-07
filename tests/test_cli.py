@@ -284,6 +284,7 @@ def test_edit_clears_due_date(
     ("options", "selection", "message"),
     [
         (["--title", "Updated"], "0\n", "Task number does not exist."),
+        (["--title", "Updated"], "-1\n", "Task number does not exist."),
         (["--title", "   "], "1\n", "Title cannot be empty."),
         (["--priority", "urgent"], "1\n", "Priority must be one of"),
         (["--due-date", "invalid"], "1\n", "Due date must use YYYY-MM-DD."),
