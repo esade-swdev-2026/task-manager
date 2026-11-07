@@ -207,7 +207,13 @@ def edit(
     for line in view_tasks(displayed_tasks):
         typer.echo(line)
 
-    task_number = typer.prompt("Task number to edit", type=int)
+    raw_number = typer.prompt("Task number to edit", type=str)
+
+    try:
+        task_number = int(raw_number)
+    except ValueError:
+        typer.echo("Invalid task number.", err=True)
+        raise typer.Exit(1) from None
 
     if task_number < 1 or task_number > len(displayed_tasks):
         typer.echo("Task number does not exist.", err=True)

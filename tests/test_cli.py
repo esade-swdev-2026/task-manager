@@ -345,3 +345,50 @@ def test_edit_priority_preserves_file_order(
     assert "1. Medium - medium" in displayed.output
     assert "2. Low - low" in displayed.output
     assert "3. High - low" in displayed.output
+
+
+def test_edit_with_no_task_number_does_not_do_anything(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Original"])
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["edit", "--title", "Updated"])
+
+    assert result.exit_code == 1
+    assert path.read_bytes() == original_contents
+
+
+def test_edit_rejects_text_as_task_number(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Original"])
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["edit", "--title", "Updated"], input="abc\n")
+
+    assert result.exit_code == 1
+    assert "Invalid task number." in result.stderr
+    assert path.read_bytes() == original_contents
+
+
+def test_edit_rejects_task_number_out_of_range(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Original"])
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["edit", "--title", "Updated"], input="2\n")
+
+    assert result.exit_code == 1
+    assert "Task number does not exist." in result.stderr
+    assert path.read_bytes() == original_contents
