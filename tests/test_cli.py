@@ -243,8 +243,8 @@ def test_edit_updates_selected_task_and_preserves_other_fields(
     assert result.exit_code == 0
     assert "1. High task - high" in result.output
     assert read_tasks(Path("storage_tasks/tasks.csv")) == [
-        Task("Updated task", "high", "2026-11-10"),
         Task("Low task", "low"),
+        Task("Updated task", "high", "2026-11-10"),
     ]
 
 
@@ -322,3 +322,26 @@ def test_edit_without_saved_tasks(
     assert result.exit_code == 1
     assert "No tasks found." in result.stderr
     assert not Path("storage_tasks/tasks.csv").exists()
+
+
+def test_edit_priority_preserves_file_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["add", "Low", "--priority", "low"])
+    runner.invoke(app, ["add", "High", "--priority", "high"])
+    runner.invoke(app, ["add", "Medium", "--priority", "medium"])
+
+    result = runner.invoke(app, ["edit", "--priority", "low"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "1. High - high" in result.output
+    assert read_tasks(Path("storage_tasks/tasks.csv")) == [
+        Task("Low", "low"),
+        Task("High", "low"),
+        Task("Medium", "medium"),
+    ]
+    displayed = runner.invoke(app, ["priority"])
+    assert "1. Medium - medium" in displayed.output
+    assert "2. Low - low" in displayed.output
+    assert "3. High - low" in displayed.output

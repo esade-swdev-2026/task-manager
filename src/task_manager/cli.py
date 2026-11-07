@@ -198,16 +198,23 @@ def edit(
         typer.echo(f"could not read {DATA_FILE}", err=True)
         raise typer.Exit(1) from None
 
-    tasks = sort_tasks_by_priority(tasks)
+    displayed_tasks = sort_tasks_by_priority(tasks)
 
     if not tasks:
         typer.echo("No tasks found.", err=True)
         raise typer.Exit(1)
 
-    for line in view_tasks(tasks):
+    for line in view_tasks(displayed_tasks):
         typer.echo(line)
 
     task_number = typer.prompt("Task number to edit", type=int)
+
+    if task_number < 1 or task_number > len(displayed_tasks):
+        typer.echo("Task number does not exist.", err=True)
+        raise typer.Exit(1)
+
+    selected_task = displayed_tasks[task_number - 1]
+    task_number = next(index for index, task in enumerate(tasks, start=1) if task is selected_task)
 
     try:
         edited_task, updated_tasks = edit_task(
