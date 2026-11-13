@@ -312,6 +312,38 @@ uv run ruff format .
 
 Every check must pass before changes are merged or a release tag is created.
 
+## Run with Docker
+
+You can run the task manager using Docker without installing Python or the project dependencies locally.
+
+### Build the Docker image
+
+```bash
+docker build -t task-manager .
+```
+
+### Show available commands
+
+```bash
+docker run --rm task-manager --help
+```
+
+### Add a task
+
+Use a named volume to persist task data between containers:
+
+```bash
+docker run --rm -v task-manager-data:/app/storage_tasks task-manager add "Study Finance" --priority high
+```
+
+### List saved tasks
+
+```bash
+docker run --rm -v task-manager-data:/app/storage_tasks task-manager list
+```
+
+The named volume `task-manager-data` stores tasks in `storage_tasks/tasks.csv`, ensuring that data persists even after a container is removed.
+
 ## Generative AI disclosure
 
 ChatGPT and Codex (OpenAI) were used as support tools.
