@@ -45,3 +45,9 @@ jobs:
 
       - name: Tests
         run: uv run pytest
+    
+      - name: Build the image
+        run: docker build -t task-manager .
+
+      - name: Run the image
+        run: docker run --rm task-manager --help
