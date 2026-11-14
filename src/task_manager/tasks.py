@@ -61,5 +61,22 @@ def delete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
     return deleted_task, remaining_tasks
 
 
+def get_original_task_number(
+    tasks: list[Task],
+    displayed_tasks: list[Task],
+    task_number: int,
+) -> int:
+    if task_number < 1 or task_number > len(displayed_tasks):
+        raise InvalidNumberTasks("Task number does not exist.")
+
+    selected_task = displayed_tasks[task_number - 1]
+
+    for index, task in enumerate(tasks, start=1):
+        if task is selected_task:
+            return index
+
+    raise InvalidNumberTasks("Task number does not exist.")
+
+
 def search_tasks(tasks: list[Task], keyword: str) -> list[Task]:
     return [task for task in tasks if keyword.lower() in task.title.lower()]
