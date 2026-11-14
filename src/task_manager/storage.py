@@ -17,7 +17,11 @@ def read_tasks(path: Path) -> list[Task]:
 
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.reader(handle)
-        next(reader, None)
+
+        header = next(reader, None)
+
+        if header != CSV_HEADER:
+            raise ValueError("Invalid CSV header.")
 
         for row in reader:
             if len(row) == FIELDS_PER_ROW:
