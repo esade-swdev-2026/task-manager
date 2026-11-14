@@ -10,6 +10,7 @@ from task_manager.tasks import (
     count_tasks_by_priority,
     create_task,
     delete_task,
+    get_original_task_number,
     is_duplicate,
     search_tasks,
     sort_tasks_by_due_date,
@@ -21,6 +22,25 @@ DATA_FILE = Path("storage_tasks") / "tasks.csv"
 SORT_OPTIONS = ("priority", "date")
 
 app = typer.Typer(help="A command-line tool for managing tasks.")
+
+
+def prompt_task_number(action: str) -> int:
+    try:
+        raw_number = typer.prompt(
+            f"Task number to {action}",
+            type=str,
+            default="",
+            show_default=False,
+        )
+    except (KeyboardInterrupt, EOFError):
+        typer.echo("Task selection cancelled.", err=True)
+        raise typer.Exit(1) from None
+
+    try:
+        return int(raw_number.strip())
+    except ValueError:
+        typer.echo("Invalid task number.", err=True)
+        raise typer.Exit(1) from None
 
 
 @app.callback()
@@ -119,39 +139,24 @@ def delete() -> None:
         typer.echo(f"could not read {DATA_FILE}", err=True)
         raise typer.Exit(1) from None
 
-    # Sort tasks only for display, preserving their original CSV order
-    displayed_tasks = sort_tasks_by_priority(tasks)
-
     if not tasks:
         typer.echo("No tasks found.", err=True)
         raise typer.Exit(1)
 
+    displayed_tasks = sort_tasks_by_priority(tasks)
+
     for line in view_tasks(displayed_tasks):
         typer.echo(line)
 
-    task_number = typer.prompt("Task number to delete", type=int)
+    task_number = prompt_task_number("delete")
 
-    # Validate the selected number
-    if task_number < 1 or task_number > len(displayed_tasks):
-        typer.echo("Task number does not exist.", err=True)
-        raise typer.Exit(1)
-
-    # Identify the task selected from the displayed list
-    selected_task = displayed_tasks[task_number - 1]
-
-    # Find its position in the original CSV order
-    original_task_number = next(
-        index for index, task in enumerate(tasks, start=1) if task is selected_task
-    )
-
-    # Delete the task from the original list
     try:
+        original_task_number = get_original_task_number(tasks, displayed_tasks, task_number)
         deleted_task, remaining_tasks = delete_task(tasks, original_task_number)
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
-    # Save remaining tasks without changing their original order
     try:
         write_tasks(DATA_FILE, remaining_tasks)
     except OSError:
@@ -244,34 +249,27 @@ def edit(
         typer.echo(f"could not read {DATA_FILE}", err=True)
         raise typer.Exit(1) from None
 
-    displayed_tasks = sort_tasks_by_priority(tasks)
-
     if not tasks:
         typer.echo("No tasks found.", err=True)
         raise typer.Exit(1)
 
+    displayed_tasks = sort_tasks_by_priority(tasks)
+
     for line in view_tasks(displayed_tasks):
         typer.echo(line)
 
-    raw_number = typer.prompt("Task number to edit", type=str)
+    task_number = prompt_task_number("edit")
 
     try:
-        task_number = int(raw_number)
-    except ValueError:
-        typer.echo("Invalid task number.", err=True)
+        original_task_number = get_original_task_number(tasks, displayed_tasks, task_number)
+    except ValueError as error:
+        typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
-
-    if task_number < 1 or task_number > len(displayed_tasks):
-        typer.echo("Task number does not exist.", err=True)
-        raise typer.Exit(1)
-
-    selected_task = displayed_tasks[task_number - 1]
-    task_number = next(index for index, task in enumerate(tasks, start=1) if task is selected_task)
 
     try:
         edited_task, updated_tasks = edit_task(
             tasks,
-            task_number,
+            original_task_number,
             title=title,
             priority=priority,
             due_date=due_date,
@@ -280,7 +278,9 @@ def edit(
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
-    other_tasks = [task for index, task in enumerate(tasks, start=1) if index != task_number]
+    other_tasks = [
+        task for index, task in enumerate(tasks, start=1) if index != original_task_number
+    ]
 
     if is_duplicate(edited_task, other_tasks):
         typer.echo("Task already exists.", err=True)
