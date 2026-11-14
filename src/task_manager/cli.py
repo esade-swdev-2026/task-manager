@@ -119,23 +119,39 @@ def delete() -> None:
         typer.echo(f"could not read {DATA_FILE}", err=True)
         raise typer.Exit(1) from None
 
-    tasks = sort_tasks_by_priority(tasks)
+    # Sort tasks only for display, preserving their original CSV order
+    displayed_tasks = sort_tasks_by_priority(tasks)
 
     if not tasks:
         typer.echo("No tasks found.", err=True)
         raise typer.Exit(1)
 
-    for line in view_tasks(tasks):
+    for line in view_tasks(displayed_tasks):
         typer.echo(line)
 
     task_number = typer.prompt("Task number to delete", type=int)
 
+    # Validate the selected number
+    if task_number < 1 or task_number > len(displayed_tasks):
+        typer.echo("Task number does not exist.", err=True)
+        raise typer.Exit(1)
+
+    # Identify the task selected from the displayed list
+    selected_task = displayed_tasks[task_number - 1]
+
+    # Find its position in the original CSV order
+    original_task_number = next(
+        index for index, task in enumerate(tasks, start=1) if task is selected_task
+    )
+
+    # Delete the task from the original list
     try:
-        deleted_task, remaining_tasks = delete_task(tasks, task_number)
+        deleted_task, remaining_tasks = delete_task(tasks, original_task_number)
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
+    # Save remaining tasks without changing their original order
     try:
         write_tasks(DATA_FILE, remaining_tasks)
     except OSError:
