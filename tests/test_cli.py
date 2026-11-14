@@ -482,3 +482,41 @@ def test_search_rejects_blank_keyword(
     assert result.exit_code == 1
     assert "Search keyword cannot be empty." in result.stderr
     assert not Path("storage_tasks/tasks.csv").exists()
+
+
+@pytest.mark.parametrize("command", ["delete", "edit"])
+@pytest.mark.parametrize(
+    ("selection", "expected_message"),
+    [
+        ("abc\n", "Invalid task number."),
+        ("\n", "Invalid task number."),
+        ("0\n", "Task number does not exist."),
+        ("-1\n", "Task number does not exist."),
+        ("99\n", "Task number does not exist."),
+        ("", None),
+    ],
+)
+def test_invalid_task_selection_preserves_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+    selection: str,
+    expected_message: str | None,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    setup = runner.invoke(app, ["add", "Original task"])
+    assert setup.exit_code == 0
+
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    arguments = ["delete"] if command == "delete" else ["edit", "--title", "Updated"]
+
+    result = runner.invoke(app, arguments, input=selection)
+
+    assert result.exit_code != 0
+    assert path.read_bytes() == original_contents
+
+    if expected_message is not None:
+        assert expected_message in result.output
