@@ -125,6 +125,34 @@ def test_delete_removes_task_shown_by_list_number(
     assert saved_tasks == [Task("Low task", "low")]
 
 
+def test_delete_preserves_original_csv_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    low = runner.invoke(app, ["add", "Low task", "--priority", "low"])
+    high = runner.invoke(app, ["add", "High task", "--priority", "high"])
+    medium = runner.invoke(app, ["add", "Medium task", "--priority", "medium"])
+
+    assert low.exit_code == 0
+    assert high.exit_code == 0
+    assert medium.exit_code == 0
+
+    result = runner.invoke(app, ["delete"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "1. High task - high" in result.output
+    assert "deleted High task" in result.output
+
+    saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
+
+    assert saved_tasks == [
+        Task("Low task", "low", ""),
+        Task("Medium task", "medium", ""),
+    ]
+
+
 def test_delete_when_no_tasks_exist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
