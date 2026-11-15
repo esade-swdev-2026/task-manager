@@ -7,7 +7,7 @@ RUN uv sync --locked --no-dev --no-install-project
 
 COPY README.md LICENSE ./
 COPY src ./src
-RUN uv sync --locked --no-dev
+RUN uv sync --locked --no-dev --no-editable
 
 RUN useradd --create-home app && mkdir /app/storage_tasks && chown app:app /app/storage_tasks
 USER app
