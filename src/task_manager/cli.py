@@ -143,8 +143,11 @@ def delete() -> None:
         typer.echo("No tasks found.", err=True)
         raise typer.Exit(1)
 
-    displayed_tasks = sort_tasks_by_priority(tasks)
+    if not tasks:
+        typer.echo("No tasks found.", err=True)
+        raise typer.Exit(1)
 
+    displayed_tasks = sort_tasks_by_priority(tasks)
     for line in view_tasks(displayed_tasks):
         typer.echo(line)
 
@@ -153,10 +156,12 @@ def delete() -> None:
     try:
         original_task_number = get_original_task_number(tasks, displayed_tasks, task_number)
         deleted_task, remaining_tasks = delete_task(tasks, original_task_number)
+
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
+    # Save remaining tasks without changing their original order
     try:
         write_tasks(DATA_FILE, remaining_tasks)
     except OSError:
