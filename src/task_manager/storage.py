@@ -23,15 +23,22 @@ def read_tasks(path: Path) -> list[Task]:
         if header != CSV_HEADER:
             raise ValueError("Invalid CSV header.")
 
-        for row in reader:
-            if len(row) == FIELDS_PER_ROW:
-                tasks.append(
-                    create_task(
-                        title=row[TITLE],
-                        priority=row[PRIORITY],
-                        due_date=row[DUE_DATE],
-                    )
+        for row_number, row in enumerate(reader, start=2):
+            if len(row) != FIELDS_PER_ROW:
+                raise ValueError(
+                    f"Invalid CSV row {row_number}: expected {FIELDS_PER_ROW} columns."
                 )
+
+            try:
+                task = create_task(
+                    title=row[TITLE],
+                    priority=row[PRIORITY],
+                    due_date=row[DUE_DATE],
+                )
+            except ValueError as error:
+                raise ValueError(f"Invalid CSV row {row_number}: {error}") from error
+
+            tasks.append(task)
 
     return tasks
 

@@ -28,9 +28,8 @@ def test_append_task_keeps_existing_tasks(tmp_path: Path) -> None:
     assert read_tasks(path) == [first, second]
 
 
-def test_read_tasks_skips_broken_rows(tmp_path: Path) -> None:
+def test_read_tasks_rejects_broken_row_without_changing_file(tmp_path: Path) -> None:
     path = tmp_path / "tasks.csv"
-
     path.write_text(
         "title,priority,due_date\n"
         "Study Finance,high,2026-10-20\n"
@@ -38,11 +37,40 @@ def test_read_tasks_skips_broken_rows(tmp_path: Path) -> None:
         "Buy groceries,medium,\n",
         encoding="utf-8",
     )
+    original_contents = path.read_bytes()
 
-    assert read_tasks(path) == [
-        Task("Study Finance", "high", "2026-10-20"),
-        Task("Buy groceries", "medium", ""),
-    ]
+    with pytest.raises(ValueError, match="Invalid CSV row 3"):
+        read_tasks(path)
+
+    assert path.read_bytes() == original_contents
+
+
+@pytest.mark.parametrize(
+    ("bad_row", "message"),
+    [
+        ("Study,urgent,2026-11-20", "Priority must be one of"),
+        ("Study,high,2026-02-30", "Due date must use YYYY-MM-DD."),
+        ("   ,high,2026-11-20", "Title cannot be empty."),
+    ],
+)
+def test_read_tasks_rejects_invalid_values_without_changing_file(
+    tmp_path: Path,
+    bad_row: str,
+    message: str,
+) -> None:
+    path = tmp_path / "tasks.csv"
+    path.write_text(
+        f"title,priority,due_date\nValid task,medium,\n{bad_row}\n",
+        encoding="utf-8",
+    )
+    original_contents = path.read_bytes()
+
+    with pytest.raises(ValueError) as error:
+        read_tasks(path)
+
+    assert "Invalid CSV row 3:" in str(error.value)
+    assert message in str(error.value)
+    assert path.read_bytes() == original_contents
 
 
 def test_write_tasks_replaces_previous_contents(tmp_path: Path) -> None:
@@ -78,6 +106,20 @@ def test_delete_only_task_leaves_no_tasks(tmp_path: Path) -> None:
     delete_task(path, 1)
 
     assert read_tasks(path) == []
+
+
+def test_delete_does_not_overwrite_malformed_file(tmp_path: Path) -> None:
+    path = tmp_path / "tasks.csv"
+    path.write_text(
+        "title,priority,due_date\nValid task,high,\nbroken row\n",
+        encoding="utf-8",
+    )
+    original_contents = path.read_bytes()
+
+    with pytest.raises(ValueError, match="Invalid CSV row 3"):
+        delete_task(path, 1)
+
+    assert path.read_bytes() == original_contents
 
 
 def test_read_tasks_rejects_invalid_csv_header(tmp_path: Path) -> None:
@@ -136,3 +178,20 @@ def test_read_tasks_accepts_header_without_tasks(tmp_path: Path) -> None:
     tasks = read_tasks(csv_file)
 
     assert tasks == []
+
+
+def test_read_tasks_accepts_special_characters_in_titles(tmp_path: Path) -> None:
+    path = tmp_path / "tasks.csv"
+    path.write_text(
+        "title,priority,due_date\n"
+        '"Buy, milk",medium,\n'
+        '"Say ""hello""",high,\n'
+        "Cafè ☕,low,2026-11-20\n",
+        encoding="utf-8",
+    )
+
+    assert read_tasks(path) == [
+        Task("Buy, milk", "medium", ""),
+        Task('Say "hello"', "high", ""),
+        Task("Cafè ☕", "low", "2026-11-20"),
+    ]
