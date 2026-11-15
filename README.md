@@ -148,6 +148,13 @@ Invalid values, invalid task numbers and changes that would create an
 exact duplicate are rejected without modifying saved data.
 At least one field must be provided.
 
+### Task selection
+
+When editing or deleting a task, enter the number shown in the displayed list.
+
+Tasks are displayed in priority order, so these numbers represent temporary positions, not permanent task IDs.
+
+Invalid selections do not modify saved tasks. Editing or deleting tasks preserves the original order of the remaining tasks in the CSV file.
 
 ## Command reference
 
@@ -320,7 +327,7 @@ The existing task logic and tests from the earlier checkpoints were used as the 
 
 For CSV persistence and duplicate detection, ChatGPT helped explain how tasks could be written to and read from storage_tasks/tasks.csv. It also suggested tests for saving multiple tasks, malformed CSV rows, exact duplicates, and persistence between CLI executions. The group reviewed the suggestions and tested the final behaviour locally.
 
-For task deletion and the list --sort-by date option, ChatGPT helped turn the intended behaviour into draft code and test cases. 
+For task deletion, task selection, and the list --sort-by date option, ChatGPT helped turn the intended behaviour into draft code and test cases. This included preserving CSV order when deleting tasks, refactoring shared selection logic for editing and deleting, and testing invalid user inputs. The group reviewed the suggested changes and verified the implementation using automated tests.
 
 The wording and organisation of this README were drafted with ChatGPT. This included the installation instructions, command examples, storage explanation, project structure, development checks, and this AI disclosure. 
 

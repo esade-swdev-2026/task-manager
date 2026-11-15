@@ -12,6 +12,7 @@ from task_manager.tasks import (
     count_tasks_by_priority,
     create_task,
     delete_task,
+    get_original_task_number,
     is_duplicate,
     remove_duplicate_tasks,
     search_tasks,
@@ -272,3 +273,43 @@ def test_search_tasks_partial_keyword() -> None:
 
     assert len(result) == 1
     assert result[0].title == "Study Python"
+
+
+def test_get_original_task_number_preserves_storage_order() -> None:
+    tasks = [
+        Task("Low task", "low"),
+        Task("High task", "high"),
+        Task("Medium task", "medium"),
+    ]
+
+    displayed_tasks = sort_tasks_by_priority(tasks)
+
+    assert get_original_task_number(tasks, displayed_tasks, 1) == 2
+    assert get_original_task_number(tasks, displayed_tasks, 2) == 3
+    assert get_original_task_number(tasks, displayed_tasks, 3) == 1
+
+
+@pytest.mark.parametrize("task_number", [0, -1, 4])
+def test_get_original_task_number_rejects_invalid_numbers(
+    task_number: int,
+) -> None:
+    tasks = [
+        Task("Low task", "low"),
+        Task("High task", "high"),
+        Task("Medium task", "medium"),
+    ]
+
+    displayed_tasks = sort_tasks_by_priority(tasks)
+
+    with pytest.raises(InvalidNumberTasks, match="Task number does not exist."):
+        get_original_task_number(tasks, displayed_tasks, task_number)
+
+
+def test_get_original_task_number_handles_identical_tasks() -> None:
+    first = Task("Same task", "high")
+    second = Task("Same task", "high")
+
+    tasks = [first, second]
+    displayed_tasks = sort_tasks_by_priority(tasks)
+
+    assert get_original_task_number(tasks, displayed_tasks, 2) == 2
