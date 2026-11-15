@@ -1,13 +1,118 @@
+import csv
 from pathlib import Path
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
+import task_manager.cli as cli
 from task_manager.cli import app
 from task_manager.models import Task
 from task_manager.storage import read_tasks
 
 runner = CliRunner()
+
+
+def test_load_tasks_or_exit_returns_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_tasks = [Task("Study Finance", "high", "")]
+
+    monkeypatch.setattr(cli, "read_tasks", lambda path: expected_tasks)
+
+    result = cli.load_tasks_or_exit(tmp_path / "tasks.csv")
+
+    assert result == expected_tasks
+
+
+def test_load_tasks_or_exit_returns_empty_list_when_file_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_file_not_found(path: Path) -> list[Task]:
+        raise FileNotFoundError("file not found")
+
+    monkeypatch.setattr(cli, "read_tasks", raise_file_not_found)
+
+    result = cli.load_tasks_or_exit(tmp_path / "tasks.csv")
+
+    assert result == []
+
+
+def test_load_tasks_or_exit_handles_invalid_csv_header(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "tasks.csv"
+    path.write_text("invalid,header\n", encoding="utf-8")
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli.load_tasks_or_exit(path)
+
+    assert exc_info.value.exit_code == 1
+
+
+@pytest.mark.parametrize(
+    ("error_type", "error_message"),
+    [
+        (PermissionError, "Permission denied"),
+        (OSError, "Input/output error"),
+        (ValueError, "Invalid CSV data"),
+        (csv.Error, "Malformed CSV"),
+    ],
+)
+def test_load_tasks_or_exit_handles_read_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    error_type: type[Exception],
+    error_message: str,
+) -> None:
+    path = tmp_path / "tasks.csv"
+
+    def raise_read_error(file_path: Path) -> list[Task]:
+        raise error_type(error_message)
+
+    monkeypatch.setattr(cli, "read_tasks", raise_read_error)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli.load_tasks_or_exit(path)
+
+    captured = capsys.readouterr()
+
+    assert exc_info.value.exit_code == 1
+    assert f"could not read {path}: {error_message}" in captured.err
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["add", "New task"],
+        ["list"],
+        ["delete"],
+        ["priority"],
+        ["search", "study"],
+        ["edit", "--title", "Updated task"],
+    ],
+)
+def test_commands_handle_csv_read_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    arguments: list[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def raise_read_error(path: Path) -> list[Task]:
+        raise PermissionError("Permission denied")
+
+    monkeypatch.setattr(cli, "read_tasks", raise_read_error)
+
+    result = runner.invoke(app, arguments)
+
+    assert result.exit_code == 1
+    assert "could not read" in result.stderr
+    assert "Permission denied" in result.stderr
+    assert "Traceback" not in result.output
 
 
 def test_add_task_default_priority(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1,3 +1,4 @@
+import csv
 from pathlib import Path
 
 import typer
@@ -22,6 +23,19 @@ DATA_FILE = Path("storage_tasks") / "tasks.csv"
 SORT_OPTIONS = ("priority", "date")
 
 app = typer.Typer(help="A command-line tool for managing tasks.")
+
+
+def load_tasks_or_exit(path: Path) -> list[Task]:
+    """Load tasks from CSV, returning an empty list if the file is missing."""
+    try:
+        return read_tasks(path)
+
+    except FileNotFoundError:
+        return []
+
+    except (OSError, ValueError, csv.Error) as exc:
+        typer.echo(f"could not read {path}: {exc}", err=True)
+        raise typer.Exit(1) from None
 
 
 def prompt_task_number(action: str) -> int:
@@ -66,14 +80,7 @@ def add(
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
-    existing_tasks: list[Task] = []
-
-    if DATA_FILE.exists():
-        try:
-            existing_tasks = read_tasks(DATA_FILE)
-        except (OSError, ValueError):
-            typer.echo(f"could not read {DATA_FILE}", err=True)
-            raise typer.Exit(1) from None
+    existing_tasks = load_tasks_or_exit(DATA_FILE)
 
     if is_duplicate(task, existing_tasks):
         typer.echo("Task already exists.", err=True)
@@ -102,15 +109,11 @@ def list_tasks(
         typer.echo(f"Sort must be one of: {allowed}.", err=True)
         raise typer.Exit(1)
 
-    if not DATA_FILE.exists():
+    tasks = load_tasks_or_exit(DATA_FILE)
+
+    if not tasks:
         typer.echo("No tasks found.")
         return
-
-    try:
-        tasks = read_tasks(DATA_FILE)
-    except (OSError, ValueError):
-        typer.echo(f"could not read {DATA_FILE}", err=True)
-        raise typer.Exit(1) from None
 
     if normalized_sort == "date":
         tasks = sort_tasks_by_due_date(tasks)
@@ -129,19 +132,7 @@ def list_tasks(
 
 @app.command()
 def delete() -> None:
-    if not DATA_FILE.exists():
-        typer.echo("No tasks found.", err=True)
-        raise typer.Exit(1)
-
-    try:
-        tasks = read_tasks(DATA_FILE)
-    except (OSError, ValueError):
-        typer.echo(f"could not read {DATA_FILE}", err=True)
-        raise typer.Exit(1) from None
-
-    if not tasks:
-        typer.echo("No tasks found.", err=True)
-        raise typer.Exit(1)
+    tasks = load_tasks_or_exit(DATA_FILE)
 
     if not tasks:
         typer.echo("No tasks found.", err=True)
@@ -173,15 +164,7 @@ def delete() -> None:
 
 @app.command()
 def priority() -> None:
-    if not DATA_FILE.exists():
-        typer.echo("No tasks found.")
-        return
-
-    try:
-        tasks = read_tasks(DATA_FILE)
-    except (OSError, ValueError):
-        typer.echo(f"could not read {DATA_FILE}", err=True)
-        raise typer.Exit(1) from None
+    tasks = load_tasks_or_exit(DATA_FILE)
 
     counts = count_tasks_by_priority(tasks)
 
@@ -210,15 +193,10 @@ def search(keyword: str) -> None:
         typer.echo("Search keyword cannot be empty.", err=True)
         raise typer.Exit(1)
 
-    if not DATA_FILE.exists():
+    tasks = load_tasks_or_exit(DATA_FILE)
+    if not tasks:
         typer.echo("No tasks found.")
         return
-
-    try:
-        tasks = read_tasks(DATA_FILE)
-    except (OSError, ValueError):
-        typer.echo(f"could not read {DATA_FILE}", err=True)
-        raise typer.Exit(1) from None
 
     matching_tasks = search_tasks(tasks, normalized_keyword)
 
@@ -244,15 +222,7 @@ def edit(
         typer.echo("Provide at least one field to edit.", err=True)
         raise typer.Exit(1)
 
-    if not DATA_FILE.exists():
-        typer.echo("No tasks found.", err=True)
-        raise typer.Exit(1)
-
-    try:
-        tasks = read_tasks(DATA_FILE)
-    except (OSError, ValueError):
-        typer.echo(f"could not read {DATA_FILE}", err=True)
-        raise typer.Exit(1) from None
+    tasks = load_tasks_or_exit(DATA_FILE)
 
     if not tasks:
         typer.echo("No tasks found.", err=True)
