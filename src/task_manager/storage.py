@@ -16,29 +16,33 @@ def read_tasks(path: Path) -> list[Task]:
     tasks: list[Task] = []
 
     with path.open(newline="", encoding="utf-8") as handle:
-        reader = csv.reader(handle)
+        reader = csv.reader(handle, strict=True)
 
-        header = next(reader, None)
+        try:
+            header = next(reader, None)
 
-        if header != CSV_HEADER:
-            raise ValueError("Invalid CSV header.")
+            if header != CSV_HEADER:
+                raise ValueError("Invalid CSV header.")
 
-        for row_number, row in enumerate(reader, start=2):
-            if len(row) != FIELDS_PER_ROW:
-                raise ValueError(
-                    f"Invalid CSV row {row_number}: expected {FIELDS_PER_ROW} columns."
-                )
+            for row_number, row in enumerate(reader, start=2):
+                if len(row) != FIELDS_PER_ROW:
+                    raise ValueError(
+                        f"Invalid CSV row {row_number}: expected {FIELDS_PER_ROW} columns."
+                    )
 
-            try:
-                task = create_task(
-                    title=row[TITLE],
-                    priority=row[PRIORITY],
-                    due_date=row[DUE_DATE],
-                )
-            except ValueError as error:
-                raise ValueError(f"Invalid CSV row {row_number}: {error}") from error
+                try:
+                    task = create_task(
+                        title=row[TITLE],
+                        priority=row[PRIORITY],
+                        due_date=row[DUE_DATE],
+                    )
+                except ValueError as error:
+                    raise ValueError(f"Invalid CSV row {row_number}: {error}") from error
 
-            tasks.append(task)
+                tasks.append(task)
+
+        except csv.Error as error:
+            raise ValueError(f"Invalid CSV syntax near line {reader.line_num}: {error}") from error
 
     return tasks
 

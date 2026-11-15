@@ -195,3 +195,19 @@ def test_read_tasks_accepts_special_characters_in_titles(tmp_path: Path) -> None
         Task('Say "hello"', "high", ""),
         Task("Cafè ☕", "low", "2026-11-20"),
     ]
+
+
+def test_read_tasks_rejects_invalid_csv_syntax_without_changing_file(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "tasks.csv"
+    path.write_text(
+        'title,priority,due_date\n"Unclosed title,high,2026-10-20\n',
+        encoding="utf-8",
+    )
+    original_contents = path.read_bytes()
+
+    with pytest.raises(ValueError, match="Invalid CSV syntax"):
+        read_tasks(path)
+
+    assert path.read_bytes() == original_contents
