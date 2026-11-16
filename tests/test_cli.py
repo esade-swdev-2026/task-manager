@@ -168,9 +168,9 @@ def test_duplicate_task_is_not_saved(tmp_path: Path, monkeypatch: pytest.MonkeyP
 def test_list_tasks_are_sorted_by_priority(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
-    runner.invoke(app, ["add", "Low task", "--priority", "low"])
-    runner.invoke(app, ["add", "High task", "--priority", "high"])
-    runner.invoke(app, ["add", "Medium task", "--priority", "medium"])
+    assert runner.invoke(app, ["add", "Low task", "--priority", "low"]).exit_code == 0
+    assert runner.invoke(app, ["add", "High task", "--priority", "high"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Medium task", "--priority", "medium"]).exit_code == 0
 
     result = runner.invoke(app, ["list"])
 
@@ -217,8 +217,8 @@ def test_delete_removes_task_shown_by_list_number(
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    runner.invoke(app, ["add", "Low task", "--priority", "low"])
-    runner.invoke(app, ["add", "High task", "--priority", "high"])
+    assert runner.invoke(app, ["add", "Low task", "--priority", "low"]).exit_code == 0
+    assert runner.invoke(app, ["add", "High task", "--priority", "high"]).exit_code == 0
 
     result = runner.invoke(app, ["delete"], input="1\n")
     saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
@@ -271,14 +271,22 @@ def test_delete_when_no_tasks_exist(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 def test_list_tasks_are_sorted_by_due_date(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
-    runner.invoke(app, ["add", "No date task", "--priority", "high"])
-    runner.invoke(
-        app,
-        ["add", "Late task", "--priority", "high", "--due-date", "2026-12-01"],
+    assert runner.invoke(app, ["add", "No date task", "--priority", "high"]).exit_code == 0
+
+    assert (
+        runner.invoke(
+            app,
+            ["add", "Late task", "--priority", "high", "--due-date", "2026-12-01"],
+        ).exit_code
+        == 0
     )
-    runner.invoke(
-        app,
-        ["add", "Early task", "--priority", "low", "--due-date", "2026-10-01"],
+
+    assert (
+        runner.invoke(
+            app,
+            ["add", "Early task", "--priority", "low", "--due-date", "2026-10-01"],
+        ).exit_code
+        == 0
     )
 
     result = runner.invoke(app, ["list", "--sort-by", "date"])
@@ -307,10 +315,10 @@ def test_priority_counts_and_sorts_tasks(
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    runner.invoke(app, ["add", "Low task", "--priority", "low"])
-    runner.invoke(app, ["add", "High task", "--priority", "high"])
-    runner.invoke(app, ["add", "Medium task", "--priority", "medium"])
-    runner.invoke(app, ["add", "Another high task", "--priority", "high"])
+    assert runner.invoke(app, ["add", "Low task", "--priority", "low"]).exit_code == 0
+    assert runner.invoke(app, ["add", "High task", "--priority", "high"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Medium task", "--priority", "medium"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Another high task", "--priority", "high"]).exit_code == 0
 
     result = runner.invoke(app, ["priority"])
 
@@ -347,8 +355,8 @@ def test_priority_with_only_high_priority_tasks(
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    runner.invoke(app, ["add", "First task", "--priority", "high"])
-    runner.invoke(app, ["add", "Second task", "--priority", "high"])
+    assert runner.invoke(app, ["add", "First task", "--priority", "high"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Second task", "--priority", "high"]).exit_code == 0
 
     result = runner.invoke(app, ["priority"])
 
@@ -365,12 +373,15 @@ def test_edit_updates_selected_task_and_preserves_other_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Low task", "--priority", "low"])
-    runner.invoke(
-        app,
-        ["add", "High task", "--priority", "high", "--due-date", "2026-11-10"],
-    )
+    assert runner.invoke(app, ["add", "Low task", "--priority", "low"]).exit_code == 0
 
+    assert (
+        runner.invoke(
+            app,
+            ["add", "High task", "--priority", "high", "--due-date", "2026-11-10"],
+        ).exit_code
+        == 0
+    )
     result = runner.invoke(app, ["edit", "--title", "Updated task"], input="1\n")
 
     assert result.exit_code == 0
@@ -386,7 +397,7 @@ def test_edit_changes_all_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Original"])
+    assert runner.invoke(app, ["add", "Original"]).exit_code == 0
 
     result = runner.invoke(
         app,
@@ -405,7 +416,7 @@ def test_edit_clears_due_date(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Study", "--due-date", "2026-11-10"])
+    assert runner.invoke(app, ["add", "Study", "--due-date", "2026-11-10"]).exit_code == 0
 
     result = runner.invoke(app, ["edit", "--due-date", ""], input="1\n")
 
@@ -433,8 +444,8 @@ def test_edit_rejects_invalid_changes_without_modifying_file(
     message: str,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Original"])
-    runner.invoke(app, ["add", "Other"])
+    assert runner.invoke(app, ["add", "Original"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Other"]).exit_code == 0
     path = Path("storage_tasks/tasks.csv")
     original_contents = path.read_bytes()
 
@@ -462,9 +473,9 @@ def test_edit_priority_preserves_file_order(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Low", "--priority", "low"])
-    runner.invoke(app, ["add", "High", "--priority", "high"])
-    runner.invoke(app, ["add", "Medium", "--priority", "medium"])
+    assert runner.invoke(app, ["add", "Low", "--priority", "low"]).exit_code == 0
+    assert runner.invoke(app, ["add", "High", "--priority", "high"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Medium", "--priority", "medium"]).exit_code == 0
 
     result = runner.invoke(app, ["edit", "--priority", "low"], input="1\n")
 
@@ -486,7 +497,8 @@ def test_edit_with_no_task_number_does_not_do_anything(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Original"])
+    assert runner.invoke(app, ["add", "Original"]).exit_code == 0
+
     path = Path("storage_tasks/tasks.csv")
     original_contents = path.read_bytes()
 
@@ -501,7 +513,7 @@ def test_edit_rejects_text_as_task_number(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Original"])
+    assert runner.invoke(app, ["add", "Original"]).exit_code == 0
     path = Path("storage_tasks/tasks.csv")
     original_contents = path.read_bytes()
 
@@ -517,7 +529,7 @@ def test_edit_rejects_task_number_out_of_range(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Original"])
+    assert runner.invoke(app, ["add", "Original"]).exit_code == 0
     path = Path("storage_tasks/tasks.csv")
     original_contents = path.read_bytes()
 
@@ -533,9 +545,9 @@ def test_search_finds_matches_and_preserves_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Study Python"])
-    runner.invoke(app, ["add", "Buy groceries"])
-    runner.invoke(app, ["add", "Study Finance"])
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Buy groceries"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Study Finance"]).exit_code == 0
 
     path = Path("storage_tasks/tasks.csv")
     original_contents = path.read_bytes()
@@ -555,7 +567,7 @@ def test_search_with_no_matches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    runner.invoke(app, ["add", "Study Python"])
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
 
     result = runner.invoke(app, ["search", "exercise"])
 
