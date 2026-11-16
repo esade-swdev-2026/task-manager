@@ -10,6 +10,7 @@ from task_manager.models import (
 )
 from task_manager.tasks import (
     add_task,
+    complete_task,
     count_tasks_by_priority,
     create_task,
     delete_task,
@@ -331,3 +332,32 @@ def test_create_task_with_completed_status() -> None:
 def test_create_task_rejects_invalid_status() -> None:
     with pytest.raises(InvalidStatus):
         create_task("Study Python", "high", "", "banana")
+
+
+def test_complete_task() -> None:
+    tasks = [
+        Task("Study Python", "high"),
+        Task("Buy groceries", "low"),
+    ]
+
+    completed_task, updated_tasks = complete_task(tasks, 1)
+
+    assert completed_task.status == "completed"
+    assert updated_tasks[0].status == "completed"
+    assert updated_tasks[1].status == "pending"
+    assert tasks[0].status == "pending"
+
+
+def test_complete_task_rejects_already_completed() -> None:
+    tasks = [Task("Study Python", "high", "", "completed")]
+
+    with pytest.raises(ValueError, match="Task is already completed."):
+        complete_task(tasks, 1)
+
+
+@pytest.mark.parametrize("task_number", [0, -1, 2])
+def test_complete_task_rejects_invalid_number(task_number: int) -> None:
+    tasks = [Task("Study Python", "high")]
+
+    with pytest.raises(InvalidNumberTasks):
+        complete_task(tasks, task_number)

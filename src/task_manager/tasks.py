@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from task_manager.models import InvalidNumberTasks, Task
 from task_manager.validation import (
     normalize_due_date,
@@ -92,3 +94,20 @@ def get_original_task_number(
 
 def search_tasks(tasks: list[Task], keyword: str) -> list[Task]:
     return [task for task in tasks if keyword.lower() in task.title.lower()]
+
+
+def complete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
+    if task_number < 1 or task_number > len(tasks):
+        raise InvalidNumberTasks("Task number does not exist.")
+
+    original_task = tasks[task_number - 1]
+
+    if original_task.status == "completed":
+        raise ValueError("Task is already completed.")
+
+    completed_task = replace(original_task, status="completed")
+
+    updated_tasks = list(tasks)
+    updated_tasks[task_number - 1] = completed_task
+
+    return completed_task, updated_tasks

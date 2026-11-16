@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 import task_manager.cli as cli
 from task_manager.cli import app
 from task_manager.models import Task
-from task_manager.storage import read_tasks
+from task_manager.storage import read_tasks, write_tasks
 
 runner = CliRunner()
 
@@ -678,3 +678,108 @@ def test_invalid_task_selection_preserves_csv(
 
     if expected_message is not None:
         assert expected_message in result.output
+
+
+def test_done_completes_task_and_saves_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+
+    result = runner.invoke(app, ["done"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "completed Study Python" in result.output
+
+    saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
+    assert saved_tasks[0].status == "completed"
+
+
+def test_done_without_pending_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+    assert runner.invoke(app, ["done"], input="1\n").exit_code == 0
+
+    result = runner.invoke(app, ["done"])
+
+    assert result.exit_code == 1
+    assert "No pending tasks found." in result.stderr
+
+
+@pytest.mark.parametrize("selection", ["0\n", "-1\n", "99\n", "abc\n"])
+def test_done_invalid_selection_preserves_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    selection: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["done"], input=selection)
+
+    assert result.exit_code == 1
+    assert path.read_bytes() == original_contents
+
+
+def test_done_completes_displayed_task_without_changing_csv_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Buy groceries", "--priority", "low"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Study Python", "--priority", "high"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Study Finance", "--priority", "medium"]).exit_code == 0
+
+    result = runner.invoke(app, ["done"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "1. [PENDING] Study Python - high" in result.output
+    assert "completed Study Python" in result.output
+
+    saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
+
+    assert saved_tasks == [
+        Task("Buy groceries", "low", "", "pending"),
+        Task("Study Python", "high", "", "completed"),
+        Task("Study Finance", "medium", "", "pending"),
+    ]
+
+
+def test_done_only_displays_pending_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+
+    write_tasks(
+        path,
+        [
+            Task("Completed task", "high", "", "completed"),
+            Task("Pending task", "low", "", "pending"),
+        ],
+    )
+
+    result = runner.invoke(app, ["done"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "Completed task" not in result.output
+    assert "1. [PENDING] Pending task - low" in result.output
+    assert "completed Pending task" in result.output
+
+    assert read_tasks(path) == [
+        Task("Completed task", "high", "", "completed"),
+        Task("Pending task", "low", "", "completed"),
+    ]

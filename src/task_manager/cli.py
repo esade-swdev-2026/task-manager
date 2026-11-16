@@ -8,6 +8,7 @@ from task_manager.formatting import view_tasks
 from task_manager.models import Task
 from task_manager.storage import append_task, read_tasks, write_tasks
 from task_manager.tasks import (
+    complete_task,
     count_tasks_by_priority,
     create_task,
     delete_task,
@@ -160,6 +161,41 @@ def delete() -> None:
         raise typer.Exit(1) from None
 
     typer.echo(f"deleted {deleted_task.title}")
+
+
+@app.command()
+def done() -> None:
+    """Mark a pending task as completed."""
+    tasks = load_tasks_or_exit(DATA_FILE)
+
+    pending_tasks = [task for task in tasks if task.status == "pending"]
+
+    if not pending_tasks:
+        typer.echo("No pending tasks found.", err=True)
+        raise typer.Exit(1)
+
+    displayed_tasks = sort_tasks_by_priority(pending_tasks)
+
+    for line in view_tasks(displayed_tasks):
+        typer.echo(line)
+
+    task_number = prompt_task_number("complete")
+
+    try:
+        original_task_number = get_original_task_number(tasks, displayed_tasks, task_number)
+        completed_task, updated_tasks = complete_task(tasks, original_task_number)
+
+    except ValueError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from None
+
+    try:
+        write_tasks(DATA_FILE, updated_tasks)
+    except OSError:
+        typer.echo(f"could not write {DATA_FILE}", err=True)
+        raise typer.Exit(1) from None
+
+    typer.echo(f"completed {completed_task.title}")
 
 
 @app.command()
