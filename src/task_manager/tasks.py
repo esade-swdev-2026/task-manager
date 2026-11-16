@@ -1,4 +1,5 @@
 from dataclasses import replace
+from datetime import date
 
 from task_manager.models import InvalidNumberTasks, Task
 from task_manager.validation import (
@@ -45,6 +46,18 @@ def filter_tasks_by_status(tasks: list[Task], status: str) -> list[Task]:
         return list(tasks)
 
     return [task for task in tasks if task.status == status]
+
+
+def is_overdue(task: Task, today: date) -> bool:
+    return (
+        task.status == "pending"
+        and task.due_date != ""
+        and date.fromisoformat(task.due_date) < today
+    )
+
+
+def filter_overdue_tasks(tasks: list[Task], today: date) -> list[Task]:
+    return [task for task in tasks if is_overdue(task, today)]
 
 
 def sort_tasks_by_priority(tasks: list[Task]) -> list[Task]:

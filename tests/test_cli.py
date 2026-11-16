@@ -1,4 +1,5 @@
 import csv
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -1019,4 +1020,32 @@ def test_list_rejects_invalid_status(
     result = runner.invoke(app, ["list", "--status", "waiting"])
 
     assert result.exit_code == 1
-    assert "Status must be one of: pending, completed, all." in result.stderr
+    assert "Status must be one of: pending, completed, all, overdue." in result.stderr
+
+
+def test_list_overdue_shows_only_pending_past_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 16))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Past", "high", "2026-11-15"),
+            Task("Today", "high", "2026-11-16"),
+            Task("Completed past", "high", "2026-11-14", "completed"),
+            Task("No date", "low"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["list", "--status", "overdue"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] Past - high - due 2026-11-15",
+    ]
+    assert path.read_bytes() == original_contents

@@ -1,4 +1,5 @@
 import csv
+from datetime import date
 from pathlib import Path
 
 import typer
@@ -12,6 +13,7 @@ from task_manager.tasks import (
     count_tasks_by_priority,
     create_task,
     delete_task,
+    filter_overdue_tasks,
     filter_tasks_by_status,
     get_original_task_number,
     is_duplicate,
@@ -25,9 +27,13 @@ DATA_FILE = Path("storage_tasks") / "tasks.csv"
 
 SORT_OPTIONS = ("priority", "date")
 
-STATUS_OPTIONS = ("pending", "completed", "all")
+STATUS_OPTIONS = ("pending", "completed", "all", "overdue")
 
 app = typer.Typer(help="A command-line tool for managing tasks.")
+
+
+def current_date() -> date:
+    return date.today()
 
 
 def load_tasks_or_exit(path: Path) -> list[Task]:
@@ -132,7 +138,10 @@ def list_tasks(
         typer.echo("No tasks found.")
         return
 
-    tasks = filter_tasks_by_status(tasks, normalized_status)
+    if normalized_status == "overdue":
+        tasks = filter_overdue_tasks(tasks, current_date())
+    else:
+        tasks = filter_tasks_by_status(tasks, normalized_status)
 
     if not tasks:
         typer.echo(f"No {normalized_status} tasks found.")
