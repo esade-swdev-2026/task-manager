@@ -1049,3 +1049,74 @@ def test_list_overdue_shows_only_pending_past_tasks(
         "1. [PENDING] Past - high - due 2026-11-15",
     ]
     assert path.read_bytes() == original_contents
+
+
+def test_list_combines_status_priority_and_date_sort(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Late high", "high", "2026-12-01"),
+            Task("No date high", "high"),
+            Task("Early high", "high", "2026-10-01"),
+            Task("Early medium", "medium", "2026-09-01"),
+            Task("Completed high", "high", "2026-08-01", "completed"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(
+        app,
+        ["list", "--status", "pending", "--priority", "high", "--sort-by", "date"],
+    )
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] Early high - high - due 2026-10-01",
+        "2. [PENDING] Late high - high - due 2026-12-01",
+        "3. [PENDING] No date high - high",
+    ]
+    assert path.read_bytes() == original_contents
+
+
+def test_list_combines_overdue_and_priority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 16))
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Past low", "low", "2026-11-15"),
+            Task("Past high", "high", "2026-11-14"),
+            Task("Completed high", "high", "2026-11-13", "completed"),
+        ],
+    )
+
+    result = runner.invoke(
+        app,
+        ["list", "--status", "overdue", "--priority", "high", "--sort-by", "date"],
+    )
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] Past high - high - due 2026-11-14",
+    ]
+
+
+def test_list_rejects_invalid_priority_filter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["list", "--priority", "urgent"])
+
+    assert result.exit_code == 1
+    assert "Priority filter must be one of: high, medium, low, all." in result.stderr

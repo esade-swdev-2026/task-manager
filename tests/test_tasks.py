@@ -17,6 +17,7 @@ from task_manager.tasks import (
     create_task,
     delete_task,
     filter_overdue_tasks,
+    filter_tasks_by_priority,
     filter_tasks_by_status,
     get_original_task_number,
     is_duplicate,
@@ -485,3 +486,17 @@ def test_filter_overdue_tasks_preserves_original_list() -> None:
 
     assert filter_overdue_tasks(tasks, date(2026, 11, 16)) == [tasks[0]]
     assert len(tasks) == 3
+
+
+def test_filter_tasks_by_priority_preserves_original_list() -> None:
+    tasks = [Task("Low", "low"), Task("High", "high")]
+
+    assert filter_tasks_by_priority(tasks, "high") == [tasks[1]]
+    assert filter_tasks_by_priority(tasks, "low") == [tasks[0]]
+    assert filter_tasks_by_priority(tasks, "all") == tasks
+    assert len(tasks) == 2
+
+
+def test_filter_tasks_by_priority_rejects_invalid_value() -> None:
+    with pytest.raises(ValueError, match="Priority filter must be one of"):
+        filter_tasks_by_priority([], "urgent")

@@ -14,6 +14,7 @@ from task_manager.tasks import (
     create_task,
     delete_task,
     filter_overdue_tasks,
+    filter_tasks_by_priority,
     filter_tasks_by_status,
     get_original_task_number,
     is_duplicate,
@@ -28,6 +29,8 @@ DATA_FILE = Path("storage_tasks") / "tasks.csv"
 SORT_OPTIONS = ("priority", "date")
 
 STATUS_OPTIONS = ("pending", "completed", "all", "overdue")
+
+PRIORITY_FILTER_OPTIONS = ("high", "medium", "low", "all")
 
 app = typer.Typer(help="A command-line tool for managing tasks.")
 
@@ -107,7 +110,6 @@ def add(
 
 
 @app.command("list")
-@app.command("list")
 def list_tasks(
     sort_by: str = typer.Option(
         "priority",
@@ -116,6 +118,10 @@ def list_tasks(
     status: str = typer.Option(
         "all",
         help="Show pending, completed, or all tasks.",
+    ),
+    priority: str = typer.Option(
+        "all",
+        help="Show tasks with high, medium, low, or all priorities.",
     ),
 ) -> None:
     normalized_sort = sort_by.strip().lower()
@@ -132,10 +138,23 @@ def list_tasks(
         typer.echo(f"Status must be one of: {allowed}.", err=True)
         raise typer.Exit(1)
 
+    normalized_priority = priority.strip().lower()
+
+    if normalized_priority not in PRIORITY_FILTER_OPTIONS:
+        allowed = ", ".join(PRIORITY_FILTER_OPTIONS)
+        typer.echo(f"Priority filter must be one of: {allowed}.", err=True)
+        raise typer.Exit(1)
+
     tasks = load_tasks_or_exit(DATA_FILE)
 
     if not tasks:
         typer.echo("No tasks found.")
+        return
+
+    tasks = filter_tasks_by_priority(tasks, normalized_priority)
+
+    if not tasks:
+        typer.echo("No tasks match the selected filters.")
         return
 
     if normalized_status == "overdue":

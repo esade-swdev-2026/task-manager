@@ -162,3 +162,13 @@ def reopen_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
     updated_tasks[task_number - 1] = reopened_task
 
     return reopened_task, updated_tasks
+
+
+def filter_tasks_by_priority(tasks: list[Task], priority: str) -> list[Task]:
+    if priority not in ("high", "medium", "low", "all"):
+        raise ValueError("Priority filter must be one of: high, medium, low, all.")
+
+    if priority == "all":
+        return list(tasks)
+
+    return [task for task in tasks if task.priority == priority]
