@@ -57,7 +57,13 @@ def count_tasks_by_priority(tasks: list[Task]) -> dict[str, int]:
 
 
 def remove_duplicate_tasks(tasks: list[Task]) -> list[Task]:
-    return list(dict.fromkeys(tasks))
+    unique_tasks: list[Task] = []
+
+    for task in tasks:
+        if not is_duplicate(task, unique_tasks):
+            unique_tasks.append(task)
+
+    return unique_tasks
 
 
 def is_duplicate(new_task: Task, tasks: list[Task]) -> bool:

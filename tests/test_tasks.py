@@ -421,3 +421,18 @@ def test_different_due_date_is_not_duplicate() -> None:
     new_task = Task("Study Python", "high", "2026-11-21", "pending")
 
     assert is_duplicate(new_task, existing_tasks) is False
+
+
+def test_remove_duplicates_ignores_status() -> None:
+    tasks = [
+        Task("Study Python", "high", "", "completed"),
+        Task("Study Python", "high", "", "pending"),
+        Task("Buy groceries", "low", "", "pending"),
+    ]
+
+    result = remove_duplicate_tasks(tasks)
+
+    assert result == [
+        Task("Study Python", "high", "", "completed"),
+        Task("Buy groceries", "low", "", "pending"),
+    ]
