@@ -540,6 +540,47 @@ def test_edit_rejects_task_number_out_of_range(
     assert path.read_bytes() == original_contents
 
 
+def test_search_matches_titles_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Buy groceries", "--priority", "high"]).exit_code == 0
+
+    assert runner.invoke(app, ["add", "High school assignment", "--priority", "low"]).exit_code == 0
+
+    result = runner.invoke(app, ["search", "high"])
+
+    assert result.exit_code == 0
+    assert "High school assignment" in result.output
+    assert "Buy groceries" not in result.output
+
+
+def test_search_rejects_corrupted_csv_without_changing_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "title,priority,due_date\nValid task,high,\nbroken row\n",
+        encoding="utf-8",
+    )
+
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["search", "Valid"])
+
+    assert result.exit_code == 1
+    assert "could not read" in result.stderr
+    assert "Invalid CSV row 3" in result.stderr
+    assert "Traceback" not in result.output
+    assert path.read_bytes() == original_contents
+
+
 def test_search_finds_matches_and_preserves_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -211,3 +211,23 @@ def test_read_tasks_rejects_invalid_csv_syntax_without_changing_file(
         read_tasks(path)
 
     assert path.read_bytes() == original_contents
+
+
+def test_write_tasks_raises_error_when_file_cannot_be_opened(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "tasks.csv"
+    tasks = [Task("Study Finance", "high")]
+
+    original_open = Path.open
+
+    def failing_open(self: Path, *args: object, **kwargs: object):
+        if self == path and args and args[0] == "w":
+            raise PermissionError("Permission denied")
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", failing_open)
+
+    with pytest.raises(PermissionError, match="Permission denied"):
+        write_tasks(path, tasks)
