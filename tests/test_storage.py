@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -220,12 +221,12 @@ def test_write_tasks_raises_error_when_file_cannot_be_opened(
     path = tmp_path / "tasks.csv"
     tasks = [Task("Study Finance", "high")]
 
-    original_open = Path.open
-
-    def failing_open(self: Path, *args: object, **kwargs: object):
-        if self == path and args and args[0] == "w":
-            raise PermissionError("Permission denied")
-        return original_open(self, *args, **kwargs)
+    def failing_open(
+        self: Path,
+        *args: object,
+        **kwargs: object,
+    ) -> NoReturn:
+        raise PermissionError("Permission denied")
 
     monkeypatch.setattr(Path, "open", failing_open)
 
