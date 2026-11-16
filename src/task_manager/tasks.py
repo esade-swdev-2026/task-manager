@@ -37,6 +37,16 @@ def add_task(
     return task
 
 
+def filter_tasks_by_status(tasks: list[Task], status: str) -> list[Task]:
+    if status not in ("pending", "completed", "all"):
+        raise ValueError("Status must be one of: pending, completed, all.")
+
+    if status == "all":
+        return list(tasks)
+
+    return [task for task in tasks if task.status == status]
+
+
 def sort_tasks_by_priority(tasks: list[Task]) -> list[Task]:
     ordered = list(tasks)
     ordered.sort(key=lambda task: PRIORITY_ORDER[task.priority])

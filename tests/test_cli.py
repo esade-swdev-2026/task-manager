@@ -943,3 +943,80 @@ def test_edit_rejects_duplicate_with_different_status(
     assert result.exit_code == 1
     assert "Task already exists." in result.stderr
     assert read_tasks(path) == original_tasks
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (
+            "pending",
+            [
+                "1. [PENDING] Pending high - high",
+                "2. [PENDING] Pending low - low",
+            ],
+        ),
+        ("completed", ["1. [COMPLETED] Completed high - high"]),
+        (
+            "all",
+            [
+                "1. [COMPLETED] Completed high - high",
+                "2. [PENDING] Pending high - high",
+                "3. [PENDING] Pending low - low",
+            ],
+        ),
+    ],
+)
+def test_list_filters_by_status_without_changing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+    expected: list[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Pending low", "low"),
+            Task("Completed high", "high", "", "completed"),
+            Task("Pending high", "high"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["list", "--status", status])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == expected
+    assert path.read_bytes() == original_contents
+
+    if status == "all":
+        assert runner.invoke(app, ["list"]).output == result.output
+
+
+def test_list_reports_when_no_tasks_match_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(path, [Task("Pending task", "high")])
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["list", "--status", "completed"])
+
+    assert result.exit_code == 0
+    assert "No completed tasks found." in result.output
+    assert path.read_bytes() == original_contents
+
+
+def test_list_rejects_invalid_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["list", "--status", "waiting"])
+
+    assert result.exit_code == 1
+    assert "Status must be one of: pending, completed, all." in result.stderr

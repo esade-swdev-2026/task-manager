@@ -14,6 +14,7 @@ from task_manager.tasks import (
     count_tasks_by_priority,
     create_task,
     delete_task,
+    filter_tasks_by_status,
     get_original_task_number,
     is_duplicate,
     remove_duplicate_tasks,
@@ -436,3 +437,21 @@ def test_remove_duplicates_ignores_status() -> None:
         Task("Study Python", "high", "", "completed"),
         Task("Buy groceries", "low", "", "pending"),
     ]
+
+
+def test_filter_tasks_by_status_preserves_original_tasks() -> None:
+    tasks = [
+        Task("Pending task", "low"),
+        Task("Completed task", "high", "", "completed"),
+    ]
+
+    assert filter_tasks_by_status(tasks, "pending") == [tasks[0]]
+    assert filter_tasks_by_status(tasks, "completed") == [tasks[1]]
+    assert filter_tasks_by_status(tasks, "all") == tasks
+    assert tasks[0].status == "pending"
+    assert tasks[1].status == "completed"
+
+
+def test_filter_tasks_by_status_rejects_invalid_value() -> None:
+    with pytest.raises(ValueError, match="Status must be one of"):
+        filter_tasks_by_status([], "waiting")

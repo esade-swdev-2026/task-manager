@@ -12,6 +12,7 @@ from task_manager.tasks import (
     count_tasks_by_priority,
     create_task,
     delete_task,
+    filter_tasks_by_status,
     get_original_task_number,
     is_duplicate,
     reopen_task,
@@ -23,6 +24,8 @@ from task_manager.tasks import (
 DATA_FILE = Path("storage_tasks") / "tasks.csv"
 
 SORT_OPTIONS = ("priority", "date")
+
+STATUS_OPTIONS = ("pending", "completed", "all")
 
 app = typer.Typer(help="A command-line tool for managing tasks.")
 
@@ -98,10 +101,15 @@ def add(
 
 
 @app.command("list")
+@app.command("list")
 def list_tasks(
     sort_by: str = typer.Option(
         "priority",
         help="Sort tasks by priority or date.",
+    ),
+    status: str = typer.Option(
+        "all",
+        help="Show pending, completed, or all tasks.",
     ),
 ) -> None:
     normalized_sort = sort_by.strip().lower()
@@ -111,10 +119,23 @@ def list_tasks(
         typer.echo(f"Sort must be one of: {allowed}.", err=True)
         raise typer.Exit(1)
 
+    normalized_status = status.strip().lower()
+
+    if normalized_status not in STATUS_OPTIONS:
+        allowed = ", ".join(STATUS_OPTIONS)
+        typer.echo(f"Status must be one of: {allowed}.", err=True)
+        raise typer.Exit(1)
+
     tasks = load_tasks_or_exit(DATA_FILE)
 
     if not tasks:
         typer.echo("No tasks found.")
+        return
+
+    tasks = filter_tasks_by_status(tasks, normalized_status)
+
+    if not tasks:
+        typer.echo(f"No {normalized_status} tasks found.")
         return
 
     if normalized_sort == "date":
@@ -122,13 +143,7 @@ def list_tasks(
     else:
         tasks = sort_tasks_by_priority(tasks)
 
-    lines = view_tasks(tasks)
-
-    if not lines:
-        typer.echo("No tasks found.")
-        return
-
-    for line in lines:
+    for line in view_tasks(tasks):
         typer.echo(line)
 
 
