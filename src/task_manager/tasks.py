@@ -111,3 +111,20 @@ def complete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]
     updated_tasks[task_number - 1] = completed_task
 
     return completed_task, updated_tasks
+
+
+def reopen_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
+    if task_number < 1 or task_number > len(tasks):
+        raise InvalidNumberTasks("Task number does not exist.")
+
+    original_task = tasks[task_number - 1]
+
+    if original_task.status == "pending":
+        raise ValueError("Task is already pending.")
+
+    reopened_task = replace(original_task, status="pending")
+
+    updated_tasks = list(tasks)
+    updated_tasks[task_number - 1] = reopened_task
+
+    return reopened_task, updated_tasks

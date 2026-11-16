@@ -17,6 +17,7 @@ from task_manager.tasks import (
     get_original_task_number,
     is_duplicate,
     remove_duplicate_tasks,
+    reopen_task,
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
@@ -361,3 +362,32 @@ def test_complete_task_rejects_invalid_number(task_number: int) -> None:
 
     with pytest.raises(InvalidNumberTasks):
         complete_task(tasks, task_number)
+
+
+def test_reopen_task() -> None:
+    tasks = [
+        Task("Study Python", "high", "", "completed"),
+        Task("Buy groceries", "low", "", "pending"),
+    ]
+
+    reopened_task, updated_tasks = reopen_task(tasks, 1)
+
+    assert reopened_task.status == "pending"
+    assert updated_tasks[0].status == "pending"
+    assert updated_tasks[1].status == "pending"
+    assert tasks[0].status == "completed"
+
+
+def test_reopen_task_rejects_already_pending() -> None:
+    tasks = [Task("Study Python", "high", "", "pending")]
+
+    with pytest.raises(ValueError, match="Task is already pending."):
+        reopen_task(tasks, 1)
+
+
+@pytest.mark.parametrize("task_number", [0, -1, 2])
+def test_reopen_task_rejects_invalid_number(task_number: int) -> None:
+    tasks = [Task("Study Python", "high", "", "completed")]
+
+    with pytest.raises(InvalidNumberTasks):
+        reopen_task(tasks, task_number)

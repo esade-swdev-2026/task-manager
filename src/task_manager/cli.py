@@ -14,6 +14,7 @@ from task_manager.tasks import (
     delete_task,
     get_original_task_number,
     is_duplicate,
+    reopen_task,
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
@@ -196,6 +197,41 @@ def done() -> None:
         raise typer.Exit(1) from None
 
     typer.echo(f"completed {completed_task.title}")
+
+
+@app.command()
+def reopen() -> None:
+    """Reopen a completed task."""
+    tasks = load_tasks_or_exit(DATA_FILE)
+
+    completed_tasks = [task for task in tasks if task.status == "completed"]
+
+    if not completed_tasks:
+        typer.echo("No completed tasks found.", err=True)
+        raise typer.Exit(1)
+
+    displayed_tasks = sort_tasks_by_priority(completed_tasks)
+
+    for line in view_tasks(displayed_tasks):
+        typer.echo(line)
+
+    task_number = prompt_task_number("reopen")
+
+    try:
+        original_task_number = get_original_task_number(tasks, displayed_tasks, task_number)
+        reopened_task, updated_tasks = reopen_task(tasks, original_task_number)
+
+    except ValueError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from None
+
+    try:
+        write_tasks(DATA_FILE, updated_tasks)
+    except OSError:
+        typer.echo(f"could not write {DATA_FILE}", err=True)
+        raise typer.Exit(1) from None
+
+    typer.echo(f"reopened {reopened_task.title}")
 
 
 @app.command()

@@ -783,3 +783,113 @@ def test_done_only_displays_pending_tasks(
         Task("Completed task", "high", "", "completed"),
         Task("Pending task", "low", "", "completed"),
     ]
+
+
+def test_reopen_changes_status_and_saves(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+    assert runner.invoke(app, ["done"], input="1\n").exit_code == 0
+
+    result = runner.invoke(app, ["reopen"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "reopened Study Python" in result.output
+
+    saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
+    assert saved_tasks[0].status == "pending"
+
+
+def test_reopen_without_completed_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+
+    result = runner.invoke(app, ["reopen"])
+
+    assert result.exit_code == 1
+    assert "No completed tasks found." in result.stderr
+
+
+@pytest.mark.parametrize("selection", ["0\n", "-1\n", "99\n", "abc\n"])
+def test_reopen_invalid_selection_preserves_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    selection: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(path, [Task("Study Python", "high", "", "completed")])
+
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["reopen"], input=selection)
+
+    assert result.exit_code == 1
+    assert path.read_bytes() == original_contents
+
+
+def test_reopen_respects_displayed_order_and_preserves_csv_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+
+    write_tasks(
+        path,
+        [
+            Task("Buy groceries", "low", "", "completed"),
+            Task("Study Python", "high", "", "completed"),
+            Task("Study Finance", "medium", "", "pending"),
+        ],
+    )
+
+    result = runner.invoke(app, ["reopen"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "1. [COMPLETED] Study Python - high" in result.output
+    assert "reopened Study Python" in result.output
+
+    assert read_tasks(path) == [
+        Task("Buy groceries", "low", "", "completed"),
+        Task("Study Python", "high", "", "pending"),
+        Task("Study Finance", "medium", "", "pending"),
+    ]
+
+
+def test_reopen_only_displays_completed_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+
+    write_tasks(
+        path,
+        [
+            Task("Pending task", "high", "", "pending"),
+            Task("Completed task", "low", "", "completed"),
+        ],
+    )
+
+    result = runner.invoke(app, ["reopen"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "[PENDING] Pending task" not in result.output
+    assert "1. [COMPLETED] Completed task - low" in result.output
+    assert "reopened Completed task" in result.output
+
+    assert read_tasks(path) == [
+        Task("Pending task", "high", "", "pending"),
+        Task("Completed task", "low", "", "pending"),
+    ]
