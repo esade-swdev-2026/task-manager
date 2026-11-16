@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, TextIO
 
 import pytest
 
@@ -221,14 +221,77 @@ def test_write_tasks_raises_error_when_file_cannot_be_opened(
     path = tmp_path / "tasks.csv"
     tasks = [Task("Study Finance", "high")]
 
-    def failing_open(
-        self: Path,
-        *args: object,
-        **kwargs: object,
-    ) -> NoReturn:
+    def failing_tempfile(*args: object, **kwargs: object) -> NoReturn:
         raise PermissionError("Permission denied")
 
-    monkeypatch.setattr(Path, "open", failing_open)
+    monkeypatch.setattr(
+        "task_manager.storage.tempfile.NamedTemporaryFile",
+        failing_tempfile,
+    )
 
     with pytest.raises(PermissionError, match="Permission denied"):
         write_tasks(path, tasks)
+
+    assert not path.exists()
+
+
+def test_write_tasks_preserves_original_file_on_partial_write_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "tasks.csv"
+    original_tasks = [Task("Original task", "high")]
+    write_tasks(path, original_tasks)
+
+    original_contents = path.read_bytes()
+
+    class FailingWriter:
+        def __init__(self, handle: TextIO) -> None:
+            self.handle = handle
+            self.rows_written = 0
+
+        def writerow(self, row: list[str]) -> None:
+            self.rows_written += 1
+
+            if self.rows_written == 3:
+                raise OSError("Simulated write failure")
+
+            self.handle.write(",".join(row) + "\n")
+
+    monkeypatch.setattr(
+        "task_manager.storage.csv.writer",
+        lambda handle: FailingWriter(handle),
+    )
+
+    new_tasks = [
+        Task("New task 1", "medium"),
+        Task("New task 2", "low"),
+    ]
+
+    with pytest.raises(OSError, match="Simulated write failure"):
+        write_tasks(path, new_tasks)
+
+    assert path.read_bytes() == original_contents
+    assert not list(tmp_path.glob(f".{path.name}.*.tmp"))
+
+
+def test_write_tasks_preserves_original_when_replace_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "tasks.csv"
+    original_tasks = [Task("Original task", "high")]
+    write_tasks(path, original_tasks)
+
+    original_contents = path.read_bytes()
+
+    def failing_replace(*args: object, **kwargs: object) -> NoReturn:
+        raise PermissionError("Cannot replace CSV")
+
+    monkeypatch.setattr("task_manager.storage.os.replace", failing_replace)
+
+    with pytest.raises(PermissionError, match="Cannot replace CSV"):
+        write_tasks(path, [Task("New task", "low")])
+
+    assert path.read_bytes() == original_contents
+    assert not list(tmp_path.glob(f".{path.name}.*.tmp"))

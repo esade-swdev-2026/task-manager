@@ -1,4 +1,6 @@
 import csv
+import os
+import tempfile
 from pathlib import Path
 
 from task_manager.models import Task
@@ -48,28 +50,40 @@ def read_tasks(path: Path) -> list[Task]:
 
 
 def append_task(path: Path, task: Task) -> None:
-    path.parent.mkdir(exist_ok=True)
+    tasks = read_tasks(path) if path.exists() and path.stat().st_size > 0 else []
 
-    is_new = not path.exists() or path.stat().st_size == 0
-
-    with path.open("a", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle)
-
-        if is_new:
-            writer.writerow(CSV_HEADER)
-
-        writer.writerow([task.title, task.priority, task.due_date])
+    tasks.append(task)
+    write_tasks(path, tasks)
 
 
 def write_tasks(path: Path, tasks: list[Task]) -> None:
-    path.parent.mkdir(exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(CSV_HEADER)
+    temporary_path: Path | None = None
 
-        for task in tasks:
-            writer.writerow([task.title, task.priority, task.due_date])
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            newline="",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+
+            writer = csv.writer(handle)
+            writer.writerow(CSV_HEADER)
+
+            for task in tasks:
+                writer.writerow([task.title, task.priority, task.due_date])
+
+        os.replace(temporary_path, path)
+
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def delete_task(path: Path, task_number: int) -> None:
