@@ -20,6 +20,7 @@ def edit_task(
         title=original_task.title if title is None else title,
         priority=original_task.priority if priority is None else priority,
         due_date=original_task.due_date if due_date is None else due_date,
+        status=original_task.status,
     )
 
     updated_tasks = list(tasks)

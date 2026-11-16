@@ -1,7 +1,12 @@
 import pytest
 
-from task_manager.models import EmptyTitleError, InvalidDueDate, InvalidPriority
-from task_manager.validation import normalize_due_date, normalize_priority, normalize_title
+from task_manager.models import EmptyTitleError, InvalidDueDate, InvalidPriority, InvalidStatus
+from task_manager.validation import (
+    normalize_due_date,
+    normalize_priority,
+    normalize_status,
+    normalize_title,
+)
 
 
 def test_title_is_stripped() -> None:
@@ -33,3 +38,22 @@ def test_valid_due_date_is_kept() -> None:
 def test_invalid_due_date_is_rejected() -> None:
     with pytest.raises(InvalidDueDate, match="Due date must use YYYY-MM-DD"):
         normalize_due_date("18-10-2026")
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        ("pending", "pending"),
+        ("completed", "completed"),
+        (" PENDING ", "pending"),
+        ("Completed", "completed"),
+    ],
+)
+def test_normalize_status_valid(status: str, expected: str) -> None:
+    assert normalize_status(status) == expected
+
+
+@pytest.mark.parametrize("status", ["", "banana", "in_progress"])
+def test_normalize_status_invalid(status: str) -> None:
+    with pytest.raises(InvalidStatus):
+        normalize_status(status)

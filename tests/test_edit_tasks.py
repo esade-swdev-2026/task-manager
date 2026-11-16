@@ -161,3 +161,18 @@ def test_edit_task_rejects_empty_list() -> None:
         edit_task(tasks, 1, title="Study Git")
 
     assert tasks == []
+
+
+def test_edit_completed_task_preserves_status() -> None:
+    tasks = [Task("Study Python", "high", "", "completed")]
+
+    edited_task, updated_tasks = edit_task(
+        tasks,
+        task_number=1,
+        title="Study Advanced Python",
+    )
+
+    assert edited_task.title == "Study Advanced Python"
+    assert edited_task.status == "completed"
+    assert updated_tasks[0].status == "completed"
+    assert tasks[0].title == "Study Python"

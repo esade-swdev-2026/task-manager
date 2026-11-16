@@ -1,8 +1,14 @@
 import datetime
 
-from task_manager.models import EmptyTitleError, InvalidDueDate, InvalidPriority
+from task_manager.models import (
+    EmptyTitleError,
+    InvalidDueDate,
+    InvalidPriority,
+    InvalidStatus,
+)
 
 VALID_PRIORITIES = ("low", "medium", "high")
+VALID_STATUSES = ("pending", "completed")
 
 
 def normalize_title(title: str) -> str:
@@ -39,3 +45,13 @@ def normalize_due_date(due_date: str) -> str:
         raise InvalidDueDate("Due date must use YYYY-MM-DD.")
 
     return normalized_due_date
+
+
+def normalize_status(status: str) -> str:
+    normalized_status = status.strip().lower()
+
+    if normalized_status not in VALID_STATUSES:
+        allowed = ", ".join(VALID_STATUSES)
+        raise InvalidStatus(f"Status must be one of: {allowed}.")
+
+    return normalized_status

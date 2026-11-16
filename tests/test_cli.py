@@ -566,7 +566,7 @@ def test_search_rejects_corrupted_csv_without_changing_file(
     path = Path("storage_tasks/tasks.csv")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        "title,priority,due_date\nValid task,high,\nbroken row\n",
+        "title,priority,due_date,status\nValid task,high,,pending\nbroken row\n",
         encoding="utf-8",
     )
 

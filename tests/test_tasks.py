@@ -5,6 +5,7 @@ from task_manager.models import (
     InvalidDueDate,
     InvalidNumberTasks,
     InvalidPriority,
+    InvalidStatus,
     Task,
 )
 from task_manager.tasks import (
@@ -313,3 +314,20 @@ def test_get_original_task_number_handles_identical_tasks() -> None:
     displayed_tasks = sort_tasks_by_priority(tasks)
 
     assert get_original_task_number(tasks, displayed_tasks, 2) == 2
+
+
+def test_create_task_defaults_to_pending() -> None:
+    task = create_task("Study Python", "high")
+
+    assert task.status == "pending"
+
+
+def test_create_task_with_completed_status() -> None:
+    task = create_task("Study Python", "high", "", "COMPLETED")
+
+    assert task.status == "completed"
+
+
+def test_create_task_rejects_invalid_status() -> None:
+    with pytest.raises(InvalidStatus):
+        create_task("Study Python", "high", "", "banana")

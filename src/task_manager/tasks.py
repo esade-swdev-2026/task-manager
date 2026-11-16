@@ -1,14 +1,25 @@
 from task_manager.models import InvalidNumberTasks, Task
-from task_manager.validation import normalize_due_date, normalize_priority, normalize_title
+from task_manager.validation import (
+    normalize_due_date,
+    normalize_priority,
+    normalize_status,
+    normalize_title,
+)
 
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
 
-def create_task(title: str, priority: str = "medium", due_date: str = "") -> Task:
+def create_task(
+    title: str,
+    priority: str = "medium",
+    due_date: str = "",
+    status: str = "pending",
+) -> Task:
     return Task(
         title=normalize_title(title),
         priority=normalize_priority(priority),
         due_date=normalize_due_date(due_date),
+        status=normalize_status(status),
     )
 
 
