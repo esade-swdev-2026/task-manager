@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -211,3 +212,23 @@ def test_read_tasks_rejects_invalid_csv_syntax_without_changing_file(
         read_tasks(path)
 
     assert path.read_bytes() == original_contents
+
+
+def test_write_tasks_raises_error_when_file_cannot_be_opened(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "tasks.csv"
+    tasks = [Task("Study Finance", "high")]
+
+    def failing_open(
+        self: Path,
+        *args: object,
+        **kwargs: object,
+    ) -> NoReturn:
+        raise PermissionError("Permission denied")
+
+    monkeypatch.setattr(Path, "open", failing_open)
+
+    with pytest.raises(PermissionError, match="Permission denied"):
+        write_tasks(path, tasks)
