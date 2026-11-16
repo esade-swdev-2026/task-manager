@@ -14,14 +14,6 @@ class EmptyTitleError(ValueError):
     pass
 
 
-class TaskNotFoundError(LookupError):
-    pass
-
-
-class DuplicateTaskError(ValueError):
-    pass
-
-
 class InvalidPriority(ValueError):
     pass
 
