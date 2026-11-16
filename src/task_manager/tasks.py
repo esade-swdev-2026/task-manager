@@ -61,7 +61,12 @@ def remove_duplicate_tasks(tasks: list[Task]) -> list[Task]:
 
 
 def is_duplicate(new_task: Task, tasks: list[Task]) -> bool:
-    return new_task in tasks
+    return any(
+        task.title == new_task.title
+        and task.priority == new_task.priority
+        and task.due_date == new_task.due_date
+        for task in tasks
+    )
 
 
 def delete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:

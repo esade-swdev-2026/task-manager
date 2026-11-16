@@ -893,3 +893,53 @@ def test_reopen_only_displays_completed_tasks(
         Task("Pending task", "high", "", "pending"),
         Task("Completed task", "low", "", "pending"),
     ]
+
+
+def test_add_rejects_duplicate_of_completed_task(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [Task("Study Python", "high", "", "completed")],
+    )
+
+    result = runner.invoke(
+        app,
+        ["add", "Study Python", "--priority", "high"],
+    )
+
+    assert result.exit_code == 1
+    assert "Task already exists." in result.stderr
+
+    saved_tasks = read_tasks(path)
+    assert saved_tasks == [
+        Task("Study Python", "high", "", "completed"),
+    ]
+
+
+def test_edit_rejects_duplicate_with_different_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    original_tasks = [
+        Task("Study Python", "high", "", "completed"),
+        Task("Study Finance", "medium", "", "pending"),
+    ]
+    write_tasks(path, original_tasks)
+
+    result = runner.invoke(
+        app,
+        ["edit", "--title", "Study Python", "--priority", "high"],
+        input="2\n",
+    )
+
+    assert result.exit_code == 1
+    assert "Task already exists." in result.stderr
+    assert read_tasks(path) == original_tasks

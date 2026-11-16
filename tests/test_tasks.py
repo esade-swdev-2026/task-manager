@@ -391,3 +391,33 @@ def test_reopen_task_rejects_invalid_number(task_number: int) -> None:
 
     with pytest.raises(InvalidNumberTasks):
         reopen_task(tasks, task_number)
+
+
+def test_duplicate_ignores_status() -> None:
+    existing_tasks = [
+        Task("Study Python", "high", "", "completed"),
+    ]
+
+    new_task = Task("Study Python", "high", "", "pending")
+
+    assert is_duplicate(new_task, existing_tasks) is True
+
+
+def test_duplicate_rule_allows_different_priority_after_completion() -> None:
+    existing_tasks = [
+        Task("Study Python", "high", "", "completed"),
+    ]
+
+    new_task = Task("Study Python", "low", "", "pending")
+
+    assert is_duplicate(new_task, existing_tasks) is False
+
+
+def test_different_due_date_is_not_duplicate() -> None:
+    existing_tasks = [
+        Task("Study Python", "high", "2026-11-20", "completed"),
+    ]
+
+    new_task = Task("Study Python", "high", "2026-11-21", "pending")
+
+    assert is_duplicate(new_task, existing_tasks) is False
