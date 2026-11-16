@@ -176,9 +176,9 @@ def test_list_tasks_are_sorted_by_priority(tmp_path: Path, monkeypatch: pytest.M
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
-        "1. High task - high",
-        "2. Medium task - medium",
-        "3. Low task - low",
+        "1. [PENDING] High task - high",
+        "2. [PENDING] Medium task - medium",
+        "3. [PENDING] Low task - low",
     ]
 
 
@@ -224,8 +224,8 @@ def test_delete_removes_task_shown_by_list_number(
     saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
 
     assert result.exit_code == 0
-    assert "1. High task - high" in result.output
-    assert "2. Low task - low" in result.output
+    assert "1. [PENDING] High task - high" in result.output
+    assert "2. [PENDING] Low task - low" in result.output
     assert "deleted High task" in result.output
     assert saved_tasks == [Task("Low task", "low")]
 
@@ -247,7 +247,7 @@ def test_delete_preserves_original_csv_order(
     result = runner.invoke(app, ["delete"], input="1\n")
 
     assert result.exit_code == 0
-    assert "1. High task - high" in result.output
+    assert "1. [PENDING] High task - high" in result.output
     assert "deleted High task" in result.output
 
     saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
@@ -293,9 +293,9 @@ def test_list_tasks_are_sorted_by_due_date(tmp_path: Path, monkeypatch: pytest.M
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
-        "1. Early task - low - due 2026-10-01",
-        "2. Late task - high - due 2026-12-01",
-        "3. No date task - high",
+        "1. [PENDING] Early task - low - due 2026-10-01",
+        "2. [PENDING] Late task - high - due 2026-12-01",
+        "3. [PENDING] No date task - high",
     ]
 
 
@@ -330,10 +330,10 @@ def test_priority_counts_and_sorts_tasks(
         "Low: 1",
         "",
         "Tasks sorted by priority:",
-        "1. High task - high",
-        "2. Another high task - high",
-        "3. Medium task - medium",
-        "4. Low task - low",
+        "1. [PENDING] High task - high",
+        "2. [PENDING] Another high task - high",
+        "3. [PENDING] Medium task - medium",
+        "4. [PENDING] Low task - low",
     ]
 
 
@@ -364,8 +364,8 @@ def test_priority_with_only_high_priority_tasks(
     assert "High: 2" in result.output
     assert "Medium: 0" in result.output
     assert "Low: 0" in result.output
-    assert "1. First task - high" in result.output
-    assert "2. Second task - high" in result.output
+    assert "1. [PENDING] First task - high" in result.output
+    assert "2. [PENDING] Second task - high" in result.output
 
 
 def test_edit_updates_selected_task_and_preserves_other_fields(
@@ -385,7 +385,7 @@ def test_edit_updates_selected_task_and_preserves_other_fields(
     result = runner.invoke(app, ["edit", "--title", "Updated task"], input="1\n")
 
     assert result.exit_code == 0
-    assert "1. High task - high" in result.output
+    assert "1. [PENDING] High task - high" in result.output
     assert read_tasks(Path("storage_tasks/tasks.csv")) == [
         Task("Low task", "low"),
         Task("Updated task", "high", "2026-11-10"),
@@ -480,16 +480,16 @@ def test_edit_priority_preserves_file_order(
     result = runner.invoke(app, ["edit", "--priority", "low"], input="1\n")
 
     assert result.exit_code == 0
-    assert "1. High - high" in result.output
+    assert "1. [PENDING] High - high" in result.output
     assert read_tasks(Path("storage_tasks/tasks.csv")) == [
         Task("Low", "low"),
         Task("High", "low"),
         Task("Medium", "medium"),
     ]
     displayed = runner.invoke(app, ["priority"])
-    assert "1. Medium - medium" in displayed.output
-    assert "2. Low - low" in displayed.output
-    assert "3. High - low" in displayed.output
+    assert "1. [PENDING] Medium - medium" in displayed.output
+    assert "2. [PENDING] Low - low" in displayed.output
+    assert "3. [PENDING] High - low" in displayed.output
 
 
 def test_edit_with_no_task_number_does_not_do_anything(
@@ -597,8 +597,8 @@ def test_search_finds_matches_and_preserves_file(
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
-        "1. Study Python - medium",
-        "2. Study Finance - medium",
+        "1. [PENDING] Study Python - medium",
+        "2. [PENDING] Study Finance - medium",
     ]
     assert path.read_bytes() == original_contents
 
