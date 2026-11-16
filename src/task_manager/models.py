@@ -3,11 +3,12 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Task:
-    """A task with a title, priority and due date."""
+    """A task with a title, priority, due date and status."""
 
     title: str
     priority: str = "medium"
     due_date: str = ""
+    status: str = "pending"
 
 
 class EmptyTitleError(ValueError):
@@ -23,4 +24,8 @@ class InvalidDueDate(ValueError):
 
 
 class InvalidNumberTasks(ValueError):
+    pass
+
+
+class InvalidStatus(ValueError):
     pass

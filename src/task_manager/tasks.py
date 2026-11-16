@@ -1,14 +1,27 @@
+from dataclasses import replace
+
 from task_manager.models import InvalidNumberTasks, Task
-from task_manager.validation import normalize_due_date, normalize_priority, normalize_title
+from task_manager.validation import (
+    normalize_due_date,
+    normalize_priority,
+    normalize_status,
+    normalize_title,
+)
 
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
 
-def create_task(title: str, priority: str = "medium", due_date: str = "") -> Task:
+def create_task(
+    title: str,
+    priority: str = "medium",
+    due_date: str = "",
+    status: str = "pending",
+) -> Task:
     return Task(
         title=normalize_title(title),
         priority=normalize_priority(priority),
         due_date=normalize_due_date(due_date),
+        status=normalize_status(status),
     )
 
 
@@ -44,11 +57,22 @@ def count_tasks_by_priority(tasks: list[Task]) -> dict[str, int]:
 
 
 def remove_duplicate_tasks(tasks: list[Task]) -> list[Task]:
-    return list(dict.fromkeys(tasks))
+    unique_tasks: list[Task] = []
+
+    for task in tasks:
+        if not is_duplicate(task, unique_tasks):
+            unique_tasks.append(task)
+
+    return unique_tasks
 
 
 def is_duplicate(new_task: Task, tasks: list[Task]) -> bool:
-    return new_task in tasks
+    return any(
+        task.title == new_task.title
+        and task.priority == new_task.priority
+        and task.due_date == new_task.due_date
+        for task in tasks
+    )
 
 
 def delete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
@@ -81,3 +105,37 @@ def get_original_task_number(
 
 def search_tasks(tasks: list[Task], keyword: str) -> list[Task]:
     return [task for task in tasks if keyword.lower() in task.title.lower()]
+
+
+def complete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
+    if task_number < 1 or task_number > len(tasks):
+        raise InvalidNumberTasks("Task number does not exist.")
+
+    original_task = tasks[task_number - 1]
+
+    if original_task.status == "completed":
+        raise ValueError("Task is already completed.")
+
+    completed_task = replace(original_task, status="completed")
+
+    updated_tasks = list(tasks)
+    updated_tasks[task_number - 1] = completed_task
+
+    return completed_task, updated_tasks
+
+
+def reopen_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
+    if task_number < 1 or task_number > len(tasks):
+        raise InvalidNumberTasks("Task number does not exist.")
+
+    original_task = tasks[task_number - 1]
+
+    if original_task.status == "pending":
+        raise ValueError("Task is already pending.")
+
+    reopened_task = replace(original_task, status="pending")
+
+    updated_tasks = list(tasks)
+    updated_tasks[task_number - 1] = reopened_task
+
+    return reopened_task, updated_tasks

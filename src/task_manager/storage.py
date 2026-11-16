@@ -10,9 +10,11 @@ from task_manager.tasks import delete_task as remove_task_from_list
 TITLE = 0
 PRIORITY = 1
 DUE_DATE = 2
-FIELDS_PER_ROW = 3
+STATUS = 3
 
-CSV_HEADER = ["title", "priority", "due_date"]
+FIELDS_PER_ROW = 4
+
+CSV_HEADER = ["title", "priority", "due_date", "status"]
 
 
 def read_tasks(path: Path) -> list[Task]:
@@ -38,6 +40,7 @@ def read_tasks(path: Path) -> list[Task]:
                         title=row[TITLE],
                         priority=row[PRIORITY],
                         due_date=row[DUE_DATE],
+                        status=row[STATUS],
                     )
                 except ValueError as error:
                     raise ValueError(f"Invalid CSV row {row_number}: {error}") from error
@@ -78,7 +81,7 @@ def write_tasks(path: Path, tasks: list[Task]) -> None:
             writer.writerow(CSV_HEADER)
 
             for task in tasks:
-                writer.writerow([task.title, task.priority, task.due_date])
+                writer.writerow([task.title, task.priority, task.due_date, task.status])
 
         os.replace(temporary_path, path)
 

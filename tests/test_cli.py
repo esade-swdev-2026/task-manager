@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 import task_manager.cli as cli
 from task_manager.cli import app
 from task_manager.models import Task
-from task_manager.storage import read_tasks
+from task_manager.storage import read_tasks, write_tasks
 
 runner = CliRunner()
 
@@ -176,9 +176,9 @@ def test_list_tasks_are_sorted_by_priority(tmp_path: Path, monkeypatch: pytest.M
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
-        "1. High task - high",
-        "2. Medium task - medium",
-        "3. Low task - low",
+        "1. [PENDING] High task - high",
+        "2. [PENDING] Medium task - medium",
+        "3. [PENDING] Low task - low",
     ]
 
 
@@ -224,8 +224,8 @@ def test_delete_removes_task_shown_by_list_number(
     saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
 
     assert result.exit_code == 0
-    assert "1. High task - high" in result.output
-    assert "2. Low task - low" in result.output
+    assert "1. [PENDING] High task - high" in result.output
+    assert "2. [PENDING] Low task - low" in result.output
     assert "deleted High task" in result.output
     assert saved_tasks == [Task("Low task", "low")]
 
@@ -247,7 +247,7 @@ def test_delete_preserves_original_csv_order(
     result = runner.invoke(app, ["delete"], input="1\n")
 
     assert result.exit_code == 0
-    assert "1. High task - high" in result.output
+    assert "1. [PENDING] High task - high" in result.output
     assert "deleted High task" in result.output
 
     saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
@@ -293,9 +293,9 @@ def test_list_tasks_are_sorted_by_due_date(tmp_path: Path, monkeypatch: pytest.M
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
-        "1. Early task - low - due 2026-10-01",
-        "2. Late task - high - due 2026-12-01",
-        "3. No date task - high",
+        "1. [PENDING] Early task - low - due 2026-10-01",
+        "2. [PENDING] Late task - high - due 2026-12-01",
+        "3. [PENDING] No date task - high",
     ]
 
 
@@ -330,10 +330,10 @@ def test_priority_counts_and_sorts_tasks(
         "Low: 1",
         "",
         "Tasks sorted by priority:",
-        "1. High task - high",
-        "2. Another high task - high",
-        "3. Medium task - medium",
-        "4. Low task - low",
+        "1. [PENDING] High task - high",
+        "2. [PENDING] Another high task - high",
+        "3. [PENDING] Medium task - medium",
+        "4. [PENDING] Low task - low",
     ]
 
 
@@ -364,8 +364,8 @@ def test_priority_with_only_high_priority_tasks(
     assert "High: 2" in result.output
     assert "Medium: 0" in result.output
     assert "Low: 0" in result.output
-    assert "1. First task - high" in result.output
-    assert "2. Second task - high" in result.output
+    assert "1. [PENDING] First task - high" in result.output
+    assert "2. [PENDING] Second task - high" in result.output
 
 
 def test_edit_updates_selected_task_and_preserves_other_fields(
@@ -385,7 +385,7 @@ def test_edit_updates_selected_task_and_preserves_other_fields(
     result = runner.invoke(app, ["edit", "--title", "Updated task"], input="1\n")
 
     assert result.exit_code == 0
-    assert "1. High task - high" in result.output
+    assert "1. [PENDING] High task - high" in result.output
     assert read_tasks(Path("storage_tasks/tasks.csv")) == [
         Task("Low task", "low"),
         Task("Updated task", "high", "2026-11-10"),
@@ -480,16 +480,16 @@ def test_edit_priority_preserves_file_order(
     result = runner.invoke(app, ["edit", "--priority", "low"], input="1\n")
 
     assert result.exit_code == 0
-    assert "1. High - high" in result.output
+    assert "1. [PENDING] High - high" in result.output
     assert read_tasks(Path("storage_tasks/tasks.csv")) == [
         Task("Low", "low"),
         Task("High", "low"),
         Task("Medium", "medium"),
     ]
     displayed = runner.invoke(app, ["priority"])
-    assert "1. Medium - medium" in displayed.output
-    assert "2. Low - low" in displayed.output
-    assert "3. High - low" in displayed.output
+    assert "1. [PENDING] Medium - medium" in displayed.output
+    assert "2. [PENDING] Low - low" in displayed.output
+    assert "3. [PENDING] High - low" in displayed.output
 
 
 def test_edit_with_no_task_number_does_not_do_anything(
@@ -566,7 +566,7 @@ def test_search_rejects_corrupted_csv_without_changing_file(
     path = Path("storage_tasks/tasks.csv")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        "title,priority,due_date\nValid task,high,\nbroken row\n",
+        "title,priority,due_date,status\nValid task,high,,pending\nbroken row\n",
         encoding="utf-8",
     )
 
@@ -597,8 +597,8 @@ def test_search_finds_matches_and_preserves_file(
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
-        "1. Study Python - medium",
-        "2. Study Finance - medium",
+        "1. [PENDING] Study Python - medium",
+        "2. [PENDING] Study Finance - medium",
     ]
     assert path.read_bytes() == original_contents
 
@@ -678,3 +678,268 @@ def test_invalid_task_selection_preserves_csv(
 
     if expected_message is not None:
         assert expected_message in result.output
+
+
+def test_done_completes_task_and_saves_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+
+    result = runner.invoke(app, ["done"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "completed Study Python" in result.output
+
+    saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
+    assert saved_tasks[0].status == "completed"
+
+
+def test_done_without_pending_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+    assert runner.invoke(app, ["done"], input="1\n").exit_code == 0
+
+    result = runner.invoke(app, ["done"])
+
+    assert result.exit_code == 1
+    assert "No pending tasks found." in result.stderr
+
+
+@pytest.mark.parametrize("selection", ["0\n", "-1\n", "99\n", "abc\n"])
+def test_done_invalid_selection_preserves_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    selection: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+
+    path = Path("storage_tasks/tasks.csv")
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["done"], input=selection)
+
+    assert result.exit_code == 1
+    assert path.read_bytes() == original_contents
+
+
+def test_done_completes_displayed_task_without_changing_csv_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Buy groceries", "--priority", "low"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Study Python", "--priority", "high"]).exit_code == 0
+    assert runner.invoke(app, ["add", "Study Finance", "--priority", "medium"]).exit_code == 0
+
+    result = runner.invoke(app, ["done"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "1. [PENDING] Study Python - high" in result.output
+    assert "completed Study Python" in result.output
+
+    saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
+
+    assert saved_tasks == [
+        Task("Buy groceries", "low", "", "pending"),
+        Task("Study Python", "high", "", "completed"),
+        Task("Study Finance", "medium", "", "pending"),
+    ]
+
+
+def test_done_only_displays_pending_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+
+    write_tasks(
+        path,
+        [
+            Task("Completed task", "high", "", "completed"),
+            Task("Pending task", "low", "", "pending"),
+        ],
+    )
+
+    result = runner.invoke(app, ["done"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "Completed task" not in result.output
+    assert "1. [PENDING] Pending task - low" in result.output
+    assert "completed Pending task" in result.output
+
+    assert read_tasks(path) == [
+        Task("Completed task", "high", "", "completed"),
+        Task("Pending task", "low", "", "completed"),
+    ]
+
+
+def test_reopen_changes_status_and_saves(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+    assert runner.invoke(app, ["done"], input="1\n").exit_code == 0
+
+    result = runner.invoke(app, ["reopen"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "reopened Study Python" in result.output
+
+    saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
+    assert saved_tasks[0].status == "pending"
+
+
+def test_reopen_without_completed_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
+
+    result = runner.invoke(app, ["reopen"])
+
+    assert result.exit_code == 1
+    assert "No completed tasks found." in result.stderr
+
+
+@pytest.mark.parametrize("selection", ["0\n", "-1\n", "99\n", "abc\n"])
+def test_reopen_invalid_selection_preserves_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    selection: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(path, [Task("Study Python", "high", "", "completed")])
+
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["reopen"], input=selection)
+
+    assert result.exit_code == 1
+    assert path.read_bytes() == original_contents
+
+
+def test_reopen_respects_displayed_order_and_preserves_csv_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+
+    write_tasks(
+        path,
+        [
+            Task("Buy groceries", "low", "", "completed"),
+            Task("Study Python", "high", "", "completed"),
+            Task("Study Finance", "medium", "", "pending"),
+        ],
+    )
+
+    result = runner.invoke(app, ["reopen"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "1. [COMPLETED] Study Python - high" in result.output
+    assert "reopened Study Python" in result.output
+
+    assert read_tasks(path) == [
+        Task("Buy groceries", "low", "", "completed"),
+        Task("Study Python", "high", "", "pending"),
+        Task("Study Finance", "medium", "", "pending"),
+    ]
+
+
+def test_reopen_only_displays_completed_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+
+    write_tasks(
+        path,
+        [
+            Task("Pending task", "high", "", "pending"),
+            Task("Completed task", "low", "", "completed"),
+        ],
+    )
+
+    result = runner.invoke(app, ["reopen"], input="1\n")
+
+    assert result.exit_code == 0
+    assert "[PENDING] Pending task" not in result.output
+    assert "1. [COMPLETED] Completed task - low" in result.output
+    assert "reopened Completed task" in result.output
+
+    assert read_tasks(path) == [
+        Task("Pending task", "high", "", "pending"),
+        Task("Completed task", "low", "", "pending"),
+    ]
+
+
+def test_add_rejects_duplicate_of_completed_task(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [Task("Study Python", "high", "", "completed")],
+    )
+
+    result = runner.invoke(
+        app,
+        ["add", "Study Python", "--priority", "high"],
+    )
+
+    assert result.exit_code == 1
+    assert "Task already exists." in result.stderr
+
+    saved_tasks = read_tasks(path)
+    assert saved_tasks == [
+        Task("Study Python", "high", "", "completed"),
+    ]
+
+
+def test_edit_rejects_duplicate_with_different_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    original_tasks = [
+        Task("Study Python", "high", "", "completed"),
+        Task("Study Finance", "medium", "", "pending"),
+    ]
+    write_tasks(path, original_tasks)
+
+    result = runner.invoke(
+        app,
+        ["edit", "--title", "Study Python", "--priority", "high"],
+        input="2\n",
+    )
+
+    assert result.exit_code == 1
+    assert "Task already exists." in result.stderr
+    assert read_tasks(path) == original_tasks

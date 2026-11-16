@@ -5,16 +5,19 @@ from task_manager.models import (
     InvalidDueDate,
     InvalidNumberTasks,
     InvalidPriority,
+    InvalidStatus,
     Task,
 )
 from task_manager.tasks import (
     add_task,
+    complete_task,
     count_tasks_by_priority,
     create_task,
     delete_task,
     get_original_task_number,
     is_duplicate,
     remove_duplicate_tasks,
+    reopen_task,
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
@@ -313,3 +316,123 @@ def test_get_original_task_number_handles_identical_tasks() -> None:
     displayed_tasks = sort_tasks_by_priority(tasks)
 
     assert get_original_task_number(tasks, displayed_tasks, 2) == 2
+
+
+def test_create_task_defaults_to_pending() -> None:
+    task = create_task("Study Python", "high")
+
+    assert task.status == "pending"
+
+
+def test_create_task_with_completed_status() -> None:
+    task = create_task("Study Python", "high", "", "COMPLETED")
+
+    assert task.status == "completed"
+
+
+def test_create_task_rejects_invalid_status() -> None:
+    with pytest.raises(InvalidStatus):
+        create_task("Study Python", "high", "", "banana")
+
+
+def test_complete_task() -> None:
+    tasks = [
+        Task("Study Python", "high"),
+        Task("Buy groceries", "low"),
+    ]
+
+    completed_task, updated_tasks = complete_task(tasks, 1)
+
+    assert completed_task.status == "completed"
+    assert updated_tasks[0].status == "completed"
+    assert updated_tasks[1].status == "pending"
+    assert tasks[0].status == "pending"
+
+
+def test_complete_task_rejects_already_completed() -> None:
+    tasks = [Task("Study Python", "high", "", "completed")]
+
+    with pytest.raises(ValueError, match="Task is already completed."):
+        complete_task(tasks, 1)
+
+
+@pytest.mark.parametrize("task_number", [0, -1, 2])
+def test_complete_task_rejects_invalid_number(task_number: int) -> None:
+    tasks = [Task("Study Python", "high")]
+
+    with pytest.raises(InvalidNumberTasks):
+        complete_task(tasks, task_number)
+
+
+def test_reopen_task() -> None:
+    tasks = [
+        Task("Study Python", "high", "", "completed"),
+        Task("Buy groceries", "low", "", "pending"),
+    ]
+
+    reopened_task, updated_tasks = reopen_task(tasks, 1)
+
+    assert reopened_task.status == "pending"
+    assert updated_tasks[0].status == "pending"
+    assert updated_tasks[1].status == "pending"
+    assert tasks[0].status == "completed"
+
+
+def test_reopen_task_rejects_already_pending() -> None:
+    tasks = [Task("Study Python", "high", "", "pending")]
+
+    with pytest.raises(ValueError, match="Task is already pending."):
+        reopen_task(tasks, 1)
+
+
+@pytest.mark.parametrize("task_number", [0, -1, 2])
+def test_reopen_task_rejects_invalid_number(task_number: int) -> None:
+    tasks = [Task("Study Python", "high", "", "completed")]
+
+    with pytest.raises(InvalidNumberTasks):
+        reopen_task(tasks, task_number)
+
+
+def test_duplicate_ignores_status() -> None:
+    existing_tasks = [
+        Task("Study Python", "high", "", "completed"),
+    ]
+
+    new_task = Task("Study Python", "high", "", "pending")
+
+    assert is_duplicate(new_task, existing_tasks) is True
+
+
+def test_duplicate_rule_allows_different_priority_after_completion() -> None:
+    existing_tasks = [
+        Task("Study Python", "high", "", "completed"),
+    ]
+
+    new_task = Task("Study Python", "low", "", "pending")
+
+    assert is_duplicate(new_task, existing_tasks) is False
+
+
+def test_different_due_date_is_not_duplicate() -> None:
+    existing_tasks = [
+        Task("Study Python", "high", "2026-11-20", "completed"),
+    ]
+
+    new_task = Task("Study Python", "high", "2026-11-21", "pending")
+
+    assert is_duplicate(new_task, existing_tasks) is False
+
+
+def test_remove_duplicates_ignores_status() -> None:
+    tasks = [
+        Task("Study Python", "high", "", "completed"),
+        Task("Study Python", "high", "", "pending"),
+        Task("Buy groceries", "low", "", "pending"),
+    ]
+
+    result = remove_duplicate_tasks(tasks)
+
+    assert result == [
+        Task("Study Python", "high", "", "completed"),
+        Task("Buy groceries", "low", "", "pending"),
+    ]
