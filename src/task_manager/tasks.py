@@ -18,6 +18,7 @@ def add_task(
     priority: str = "medium",
     due_date: str = "",
 ) -> Task:
+    """Create a task, append it to the input list, and return the new task."""
     task = create_task(title, priority, due_date)
     tasks.append(task)
     return task
