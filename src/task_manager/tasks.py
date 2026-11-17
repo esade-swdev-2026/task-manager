@@ -220,3 +220,12 @@ def filter_tasks_by_priority(tasks: list[Task], priority: str) -> list[Task]:
         return list(tasks)
 
     return [task for task in tasks if task.priority == priority]
+
+
+def weekly_review(tasks: list[Task], today: date) -> tuple[list[Task], list[Task], int]:
+    """Return overdue tasks, upcoming tasks and the current completed count."""
+    overdue_tasks = filter_overdue_tasks(tasks, today)
+    upcoming_tasks = tasks_due_soon(tasks, today)
+    completed_count = sum(task.status == "completed" for task in tasks)
+
+    return overdue_tasks, upcoming_tasks, completed_count

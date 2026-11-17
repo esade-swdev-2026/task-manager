@@ -1606,3 +1606,37 @@ def test_custom_data_file_edit_search_and_summary(
     assert result.exit_code == 0
     assert "Total tasks: 1" in result.output
     assert "High: 1" in result.output
+
+
+def test_weekly_review_displays_report_without_changing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 17))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Overdue task", "high", "2026-11-16"),
+            Task("Upcoming task", "medium", "2026-11-20"),
+            Task("Completed task", "low", "2026-11-15", "completed"),
+            Task("Outside the week", "high", "2026-11-25"),
+        ],
+    )
+
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["weekly-review"])
+
+    assert result.exit_code == 0
+    assert "WEEKLY REVIEW" in result.output
+    assert "OVERDUE TASKS (1)" in result.output
+    assert "Overdue task" in result.output
+    assert "UPCOMING - NEXT 7 DAYS (1)" in result.output
+    assert "Upcoming task" in result.output
+    assert "CURRENTLY COMPLETED: 1 TASKS" in result.output
+    assert "Outside the week" not in result.output
+
+    assert path.read_bytes() == original_contents
