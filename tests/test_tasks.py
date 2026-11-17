@@ -27,6 +27,7 @@ from task_manager.tasks import (
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
+    task_summary,
     tasks_due_soon,
     tasks_for_today,
 )
@@ -591,3 +592,56 @@ def test_tasks_due_soon_does_not_modify_original_list() -> None:
     assert result == [tasks[1], tasks[0]]
     assert result is not tasks
     assert tasks == original_tasks
+
+
+def test_task_summary_calculates_correct_statistics() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Overdue high", "high", "2026-11-16"),
+        Task("Today medium", "medium", "2026-11-17"),
+        Task("Future low", "low", "2026-11-20"),
+        Task("Completed high", "high", "2026-11-15", "completed"),
+        Task("Completed medium", "medium", "", "completed"),
+    ]
+
+    result = task_summary(tasks, today)
+
+    assert result == {
+        "total": 5,
+        "pending": 3,
+        "completed": 2,
+        "overdue": 1,
+        "completion_rate": 40.0,
+        "high": 2,
+        "medium": 2,
+        "low": 1,
+    }
+
+
+def test_task_summary_handles_empty_list() -> None:
+    result = task_summary([], date(2026, 11, 17))
+
+    assert result == {
+        "total": 0,
+        "pending": 0,
+        "completed": 0,
+        "overdue": 0,
+        "completion_rate": 0.0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+    }
+
+
+def test_task_summary_does_not_modify_original_tasks() -> None:
+    tasks = [
+        Task("Pending", "high", "2026-11-16"),
+        Task("Completed", "low", "", "completed"),
+    ]
+    original_tasks = list(tasks)
+
+    task_summary(tasks, date(2026, 11, 17))
+
+    assert tasks == original_tasks
+    assert tasks[0].status == "pending"
+    assert tasks[1].status == "completed"

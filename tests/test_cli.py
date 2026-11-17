@@ -1286,3 +1286,78 @@ def test_due_soon_handles_missing_csv(
 
     assert result.exit_code == 0
     assert result.output.strip() == "No tasks due in the next seven days."
+
+
+def test_summary_displays_statistics_without_changing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 17))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Overdue high", "high", "2026-11-16"),
+            Task("Today medium", "medium", "2026-11-17"),
+            Task("Future low", "low", "2026-11-20"),
+            Task("Completed high", "high", "2026-11-15", "completed"),
+            Task("Completed medium", "medium", "", "completed"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["summary"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "Task Summary",
+        "------------",
+        "Total tasks: 5",
+        "Pending: 3",
+        "Completed: 2",
+        "Overdue: 1",
+        "Completion rate: 40.0%",
+        "",
+        "Tasks by priority:",
+        "High: 2",
+        "Medium: 2",
+        "Low: 1",
+    ]
+    assert path.read_bytes() == original_contents
+
+
+def test_summary_handles_empty_task_list(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(path, [])
+
+    result = runner.invoke(app, ["summary"])
+
+    assert result.exit_code == 0
+    assert "Total tasks: 0" in result.output
+    assert "Pending: 0" in result.output
+    assert "Completed: 0" in result.output
+    assert "Overdue: 0" in result.output
+    assert "Completion rate: 0.0%" in result.output
+    assert "High: 0" in result.output
+    assert "Medium: 0" in result.output
+    assert "Low: 0" in result.output
+
+
+def test_summary_handles_missing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["summary"])
+
+    assert result.exit_code == 0
+    assert "Total tasks: 0" in result.output
+    assert "Completion rate: 0.0%" in result.output

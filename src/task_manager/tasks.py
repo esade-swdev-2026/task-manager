@@ -85,6 +85,29 @@ def tasks_due_soon(tasks: list[Task], today: date) -> list[Task]:
     return sort_tasks_by_due_date(selected_tasks)
 
 
+def task_summary(tasks: list[Task], today: date) -> dict[str, int | float]:
+    """Calculate task statistics without modifying the original tasks."""
+    total = len(tasks)
+    pending = sum(task.status == "pending" for task in tasks)
+    completed = sum(task.status == "completed" for task in tasks)
+    overdue = len(filter_overdue_tasks(tasks, today))
+
+    completion_rate = (completed / total * 100) if total > 0 else 0.0
+
+    priorities = count_tasks_by_priority(tasks)
+
+    return {
+        "total": total,
+        "pending": pending,
+        "completed": completed,
+        "overdue": overdue,
+        "completion_rate": completion_rate,
+        "high": priorities["high"],
+        "medium": priorities["medium"],
+        "low": priorities["low"],
+    }
+
+
 def sort_tasks_by_priority(tasks: list[Task]) -> list[Task]:
     ordered = list(tasks)
     ordered.sort(key=lambda task: PRIORITY_ORDER[task.priority])

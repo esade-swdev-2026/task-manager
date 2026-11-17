@@ -22,6 +22,7 @@ from task_manager.tasks import (
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
+    task_summary,
     tasks_due_soon,
     tasks_for_today,
 )
@@ -209,6 +210,26 @@ def due_soon() -> None:
 
     for line in view_tasks(selected_tasks, reference_date):
         typer.echo(line)
+
+
+@app.command()
+def summary() -> None:
+    """Show statistics about all tasks."""
+    tasks = load_tasks_or_exit(DATA_FILE)
+    statistics = task_summary(tasks, current_date())
+
+    typer.echo("Task Summary")
+    typer.echo("------------")
+    typer.echo(f"Total tasks: {statistics['total']}")
+    typer.echo(f"Pending: {statistics['pending']}")
+    typer.echo(f"Completed: {statistics['completed']}")
+    typer.echo(f"Overdue: {statistics['overdue']}")
+    typer.echo(f"Completion rate: {statistics['completion_rate']:.1f}%")
+    typer.echo("")
+    typer.echo("Tasks by priority:")
+    typer.echo(f"High: {statistics['high']}")
+    typer.echo(f"Medium: {statistics['medium']}")
+    typer.echo(f"Low: {statistics['low']}")
 
 
 @app.command()
