@@ -22,6 +22,7 @@ from task_manager.tasks import (
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
+    tasks_for_today,
 )
 
 DATA_FILE = Path("storage_tasks") / "tasks.csv"
@@ -174,6 +175,22 @@ def list_tasks(
         tasks = sort_tasks_by_priority(tasks)
 
     for line in view_tasks(tasks, today):
+        typer.echo(line)
+
+
+@app.command()
+def today() -> None:
+    """Show pending tasks that are overdue or due today."""
+    tasks = load_tasks_or_exit(DATA_FILE)
+    reference_date = current_date()
+
+    selected_tasks = tasks_for_today(tasks, reference_date)
+
+    if not selected_tasks:
+        typer.echo("No tasks due today or overdue.")
+        return
+
+    for line in view_tasks(selected_tasks, reference_date, highlight_due_today=True):
         typer.echo(line)
 
 

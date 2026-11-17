@@ -27,6 +27,7 @@ from task_manager.tasks import (
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
+    tasks_for_today,
 )
 
 GROCERIES = Task("Buy groceries", "medium", "2026-11-17")
@@ -500,3 +501,46 @@ def test_filter_tasks_by_priority_preserves_original_list() -> None:
 def test_filter_tasks_by_priority_rejects_invalid_value() -> None:
     with pytest.raises(ValueError, match="Priority filter must be one of"):
         filter_tasks_by_priority([], "urgent")
+
+
+def test_tasks_for_today_filters_and_sorts_by_due_date() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Due today", "high", "2026-11-17"),
+        Task("Future", "low", "2026-11-18"),
+        Task("Overdue yesterday", "medium", "2026-11-16"),
+        Task("Completed overdue", "high", "2026-11-10", "completed"),
+        Task("No due date", "low"),
+        Task("Oldest overdue", "high", "2026-11-10"),
+    ]
+
+    result = tasks_for_today(tasks, today)
+
+    assert result == [tasks[5], tasks[2], tasks[0]]
+
+
+def test_tasks_for_today_returns_empty_when_no_tasks_match() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Future", "high", "2026-11-20"),
+        Task("Completed today", "medium", "2026-11-17", "completed"),
+        Task("No due date", "low"),
+    ]
+
+    assert tasks_for_today(tasks, today) == []
+    assert tasks_for_today([], today) == []
+
+
+def test_tasks_for_today_does_not_modify_original_list() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Due today", "high", "2026-11-17"),
+        Task("Overdue", "low", "2026-11-15"),
+    ]
+    original_tasks = list(tasks)
+
+    result = tasks_for_today(tasks, today)
+
+    assert result == [tasks[1], tasks[0]]
+    assert tasks == original_tasks
+    assert result is not tasks

@@ -1152,3 +1152,68 @@ def test_list_highlights_overdue_without_filter(
         "3. [COMPLETED] Completed late - low - due 2026-11-14",
     ]
     assert path.read_bytes() == original_contents
+
+
+def test_today_shows_overdue_and_due_today_without_changing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 17))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Due today", "medium", "2026-11-17"),
+            Task("Future", "high", "2026-11-18"),
+            Task("Overdue", "low", "2026-11-15"),
+            Task("Completed overdue", "high", "2026-11-10", "completed"),
+            Task("No date", "medium"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["today"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] [OVERDUE] Overdue - low - due 2026-11-15",
+        "2. [PENDING] [DUE TODAY] Due today - medium - due 2026-11-17",
+    ]
+    assert path.read_bytes() == original_contents
+
+
+def test_today_handles_no_matching_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 17))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Future", "high", "2026-11-20"),
+            Task("Completed overdue", "medium", "2026-11-15", "completed"),
+            Task("No date", "low"),
+        ],
+    )
+
+    result = runner.invoke(app, ["today"])
+
+    assert result.exit_code == 0
+    assert result.output.strip() == "No tasks due today or overdue."
+
+
+def test_today_handles_missing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["today"])
+
+    assert result.exit_code == 0
+    assert result.output.strip() == "No tasks due today or overdue."

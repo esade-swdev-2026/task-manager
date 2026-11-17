@@ -60,6 +60,19 @@ def filter_overdue_tasks(tasks: list[Task], today: date) -> list[Task]:
     return [task for task in tasks if is_overdue(task, today)]
 
 
+def tasks_for_today(tasks: list[Task], today: date) -> list[Task]:
+    """Return pending tasks due today or earlier, sorted by due date."""
+    selected_tasks = [
+        task
+        for task in tasks
+        if task.status == "pending"
+        and task.due_date != ""
+        and date.fromisoformat(task.due_date) <= today
+    ]
+
+    return sort_tasks_by_due_date(selected_tasks)
+
+
 def sort_tasks_by_priority(tasks: list[Task]) -> list[Task]:
     ordered = list(tasks)
     ordered.sort(key=lambda task: PRIORITY_ORDER[task.priority])
