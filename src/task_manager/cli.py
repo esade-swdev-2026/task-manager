@@ -22,6 +22,7 @@ from task_manager.tasks import (
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
+    tasks_due_soon,
     tasks_for_today,
 )
 
@@ -191,6 +192,22 @@ def today() -> None:
         return
 
     for line in view_tasks(selected_tasks, reference_date, highlight_due_today=True):
+        typer.echo(line)
+
+
+@app.command("due-soon")
+def due_soon() -> None:
+    """Show pending tasks due within the next seven days."""
+    tasks = load_tasks_or_exit(DATA_FILE)
+    reference_date = current_date()
+
+    selected_tasks = tasks_due_soon(tasks, reference_date)
+
+    if not selected_tasks:
+        typer.echo("No tasks due in the next seven days.")
+        return
+
+    for line in view_tasks(selected_tasks, reference_date):
         typer.echo(line)
 
 

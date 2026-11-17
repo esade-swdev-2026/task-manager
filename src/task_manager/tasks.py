@@ -73,6 +73,18 @@ def tasks_for_today(tasks: list[Task], today: date) -> list[Task]:
     return sort_tasks_by_due_date(selected_tasks)
 
 
+def tasks_due_soon(tasks: list[Task], today: date) -> list[Task]:
+    """Return pending tasks due within the next seven days, excluding today."""
+    selected_tasks = [
+        task
+        for task in tasks
+        if task.status == "pending"
+        and task.due_date != ""
+        and 1 <= (date.fromisoformat(task.due_date) - today).days <= 7
+    ]
+    return sort_tasks_by_due_date(selected_tasks)
+
+
 def sort_tasks_by_priority(tasks: list[Task]) -> list[Task]:
     ordered = list(tasks)
     ordered.sort(key=lambda task: PRIORITY_ORDER[task.priority])

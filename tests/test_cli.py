@@ -1217,3 +1217,72 @@ def test_today_handles_missing_csv(
 
     assert result.exit_code == 0
     assert result.output.strip() == "No tasks due today or overdue."
+
+
+def test_due_soon_shows_upcoming_tasks_without_changing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 17))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Day 7", "low", "2026-11-24"),
+            Task("Overdue", "high", "2026-11-16"),
+            Task("Day 1", "medium", "2026-11-18"),
+            Task("Today", "high", "2026-11-17"),
+            Task("Day 8", "high", "2026-11-25"),
+            Task("Day 3", "high", "2026-11-20"),
+            Task("Completed", "high", "2026-11-19", "completed"),
+            Task("No date", "low"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["due-soon"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] Day 1 - medium - due 2026-11-18",
+        "2. [PENDING] Day 3 - high - due 2026-11-20",
+        "3. [PENDING] Day 7 - low - due 2026-11-24",
+    ]
+    assert path.read_bytes() == original_contents
+
+
+def test_due_soon_handles_no_matching_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 17))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Today", "high", "2026-11-17"),
+            Task("Day 8", "medium", "2026-11-25"),
+            Task("Completed", "low", "2026-11-18", "completed"),
+        ],
+    )
+
+    result = runner.invoke(app, ["due-soon"])
+
+    assert result.exit_code == 0
+    assert result.output.strip() == "No tasks due in the next seven days."
+
+
+def test_due_soon_handles_missing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["due-soon"])
+
+    assert result.exit_code == 0
+    assert result.output.strip() == "No tasks due in the next seven days."

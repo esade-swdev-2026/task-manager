@@ -27,6 +27,7 @@ from task_manager.tasks import (
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
+    tasks_due_soon,
     tasks_for_today,
 )
 
@@ -544,3 +545,49 @@ def test_tasks_for_today_does_not_modify_original_list() -> None:
     assert result == [tasks[1], tasks[0]]
     assert tasks == original_tasks
     assert result is not tasks
+
+
+def test_tasks_due_soon_filters_and_sorts_by_date() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Day 7", "low", "2026-11-24"),
+        Task("Overdue", "high", "2026-11-16"),
+        Task("Day 1", "medium", "2026-11-18"),
+        Task("Today", "high", "2026-11-17"),
+        Task("Day 8", "high", "2026-11-25"),
+        Task("Day 3", "high", "2026-11-20"),
+        Task("Completed", "high", "2026-11-19", "completed"),
+        Task("No date", "low"),
+    ]
+
+    result = tasks_due_soon(tasks, today)
+
+    assert result == [tasks[2], tasks[5], tasks[0]]
+
+
+def test_tasks_due_soon_returns_empty_when_no_tasks_match() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Today", "high", "2026-11-17"),
+        Task("Too late", "medium", "2026-11-25"),
+        Task("Completed", "low", "2026-11-18", "completed"),
+        Task("No date", "medium"),
+    ]
+
+    assert tasks_due_soon(tasks, today) == []
+    assert tasks_due_soon([], today) == []
+
+
+def test_tasks_due_soon_does_not_modify_original_list() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Day 7", "low", "2026-11-24"),
+        Task("Day 1", "high", "2026-11-18"),
+    ]
+    original_tasks = list(tasks)
+
+    result = tasks_due_soon(tasks, today)
+
+    assert result == [tasks[1], tasks[0]]
+    assert result is not tasks
+    assert tasks == original_tasks
