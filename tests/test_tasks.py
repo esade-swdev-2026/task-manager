@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 
 from task_manager.models import (
@@ -14,8 +16,12 @@ from task_manager.tasks import (
     count_tasks_by_priority,
     create_task,
     delete_task,
+    filter_overdue_tasks,
+    filter_tasks_by_priority,
+    filter_tasks_by_status,
     get_original_task_number,
     is_duplicate,
+    is_overdue,
     remove_duplicate_tasks,
     reopen_task,
     search_tasks,
@@ -436,3 +442,61 @@ def test_remove_duplicates_ignores_status() -> None:
         Task("Study Python", "high", "", "completed"),
         Task("Buy groceries", "low", "", "pending"),
     ]
+
+
+def test_filter_tasks_by_status_preserves_original_tasks() -> None:
+    tasks = [
+        Task("Pending task", "low"),
+        Task("Completed task", "high", "", "completed"),
+    ]
+
+    assert filter_tasks_by_status(tasks, "pending") == [tasks[0]]
+    assert filter_tasks_by_status(tasks, "completed") == [tasks[1]]
+    assert filter_tasks_by_status(tasks, "all") == tasks
+    assert tasks[0].status == "pending"
+    assert tasks[1].status == "completed"
+
+
+def test_filter_tasks_by_status_rejects_invalid_value() -> None:
+    with pytest.raises(ValueError, match="Status must be one of"):
+        filter_tasks_by_status([], "waiting")
+
+
+@pytest.mark.parametrize(
+    ("task", "today", "expected"),
+    [
+        (Task("Yesterday", "high", "2025-12-31"), date(2026, 1, 1), True),
+        (Task("Today", "high", "2026-01-01"), date(2026, 1, 1), False),
+        (Task("Tomorrow", "high", "2026-01-02"), date(2026, 1, 1), False),
+        (Task("Completed", "high", "2025-12-31", "completed"), date(2026, 1, 1), False),
+        (Task("No date", "high"), date(2026, 1, 1), False),
+        (Task("Leap day", "high", "2024-02-29"), date(2024, 3, 1), True),
+    ],
+)
+def test_is_overdue(task: Task, today: date, expected: bool) -> None:
+    assert is_overdue(task, today) is expected
+
+
+def test_filter_overdue_tasks_preserves_original_list() -> None:
+    tasks = [
+        Task("Past", "low", "2026-11-15"),
+        Task("Today", "high", "2026-11-16"),
+        Task("Completed past", "high", "2026-11-15", "completed"),
+    ]
+
+    assert filter_overdue_tasks(tasks, date(2026, 11, 16)) == [tasks[0]]
+    assert len(tasks) == 3
+
+
+def test_filter_tasks_by_priority_preserves_original_list() -> None:
+    tasks = [Task("Low", "low"), Task("High", "high")]
+
+    assert filter_tasks_by_priority(tasks, "high") == [tasks[1]]
+    assert filter_tasks_by_priority(tasks, "low") == [tasks[0]]
+    assert filter_tasks_by_priority(tasks, "all") == tasks
+    assert len(tasks) == 2
+
+
+def test_filter_tasks_by_priority_rejects_invalid_value() -> None:
+    with pytest.raises(ValueError, match="Priority filter must be one of"):
+        filter_tasks_by_priority([], "urgent")

@@ -1,4 +1,5 @@
 import csv
+from datetime import date
 from pathlib import Path
 
 import typer
@@ -12,6 +13,9 @@ from task_manager.tasks import (
     count_tasks_by_priority,
     create_task,
     delete_task,
+    filter_overdue_tasks,
+    filter_tasks_by_priority,
+    filter_tasks_by_status,
     get_original_task_number,
     is_duplicate,
     reopen_task,
@@ -24,7 +28,15 @@ DATA_FILE = Path("storage_tasks") / "tasks.csv"
 
 SORT_OPTIONS = ("priority", "date")
 
+STATUS_OPTIONS = ("pending", "completed", "all", "overdue")
+
+PRIORITY_FILTER_OPTIONS = ("high", "medium", "low", "all")
+
 app = typer.Typer(help="A command-line tool for managing tasks.")
+
+
+def current_date() -> date:
+    return date.today()
 
 
 def load_tasks_or_exit(path: Path) -> list[Task]:
@@ -103,6 +115,14 @@ def list_tasks(
         "priority",
         help="Sort tasks by priority or date.",
     ),
+    status: str = typer.Option(
+        "all",
+        help="Show pending, completed, overdue, or all tasks.",
+    ),
+    priority: str = typer.Option(
+        "all",
+        help="Show tasks with high, medium, low, or all priorities.",
+    ),
 ) -> None:
     normalized_sort = sort_by.strip().lower()
 
@@ -111,10 +131,41 @@ def list_tasks(
         typer.echo(f"Sort must be one of: {allowed}.", err=True)
         raise typer.Exit(1)
 
+    normalized_status = status.strip().lower()
+
+    if normalized_status not in STATUS_OPTIONS:
+        allowed = ", ".join(STATUS_OPTIONS)
+        typer.echo(f"Status must be one of: {allowed}.", err=True)
+        raise typer.Exit(1)
+
+    normalized_priority = priority.strip().lower()
+
+    if normalized_priority not in PRIORITY_FILTER_OPTIONS:
+        allowed = ", ".join(PRIORITY_FILTER_OPTIONS)
+        typer.echo(f"Priority filter must be one of: {allowed}.", err=True)
+        raise typer.Exit(1)
+
     tasks = load_tasks_or_exit(DATA_FILE)
 
     if not tasks:
         typer.echo("No tasks found.")
+        return
+
+    today = current_date()
+
+    if normalized_status == "overdue":
+        tasks = filter_overdue_tasks(tasks, today)
+    else:
+        tasks = filter_tasks_by_status(tasks, normalized_status)
+
+    if not tasks:
+        typer.echo(f"No {normalized_status} tasks found.")
+        return
+
+    tasks = filter_tasks_by_priority(tasks, normalized_priority)
+
+    if not tasks:
+        typer.echo("No tasks match the selected filters.")
         return
 
     if normalized_sort == "date":
@@ -122,13 +173,7 @@ def list_tasks(
     else:
         tasks = sort_tasks_by_priority(tasks)
 
-    lines = view_tasks(tasks)
-
-    if not lines:
-        typer.echo("No tasks found.")
-        return
-
-    for line in lines:
+    for line in view_tasks(tasks, today):
         typer.echo(line)
 
 
@@ -141,7 +186,7 @@ def delete() -> None:
         raise typer.Exit(1)
 
     displayed_tasks = sort_tasks_by_priority(tasks)
-    for line in view_tasks(displayed_tasks):
+    for line in view_tasks(displayed_tasks, current_date()):
         typer.echo(line)
 
     task_number = prompt_task_number("delete")
@@ -177,7 +222,7 @@ def done() -> None:
 
     displayed_tasks = sort_tasks_by_priority(pending_tasks)
 
-    for line in view_tasks(displayed_tasks):
+    for line in view_tasks(displayed_tasks, current_date()):
         typer.echo(line)
 
     task_number = prompt_task_number("complete")
@@ -212,7 +257,7 @@ def reopen() -> None:
 
     displayed_tasks = sort_tasks_by_priority(completed_tasks)
 
-    for line in view_tasks(displayed_tasks):
+    for line in view_tasks(displayed_tasks, current_date()):
         typer.echo(line)
 
     task_number = prompt_task_number("reopen")
@@ -252,7 +297,7 @@ def priority() -> None:
 
     typer.echo("\nTasks sorted by priority:")
 
-    for line in view_tasks(sorted_tasks):
+    for line in view_tasks(sorted_tasks, current_date()):
         typer.echo(line)
 
 
@@ -276,7 +321,7 @@ def search(keyword: str) -> None:
         typer.echo("No matching tasks found.")
         return
 
-    for line in view_tasks(matching_tasks):
+    for line in view_tasks(matching_tasks, current_date()):
         typer.echo(line)
 
 
@@ -302,7 +347,7 @@ def edit(
 
     displayed_tasks = sort_tasks_by_priority(tasks)
 
-    for line in view_tasks(displayed_tasks):
+    for line in view_tasks(displayed_tasks, current_date()):
         typer.echo(line)
 
     task_number = prompt_task_number("edit")

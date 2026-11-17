@@ -1,4 +1,5 @@
 import csv
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -270,6 +271,7 @@ def test_delete_when_no_tasks_exist(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 def test_list_tasks_are_sorted_by_due_date(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 1, 1))
 
     assert runner.invoke(app, ["add", "No date task", "--priority", "high"]).exit_code == 0
 
@@ -373,6 +375,7 @@ def test_edit_updates_selected_task_and_preserves_other_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 1, 1))
     assert runner.invoke(app, ["add", "Low task", "--priority", "low"]).exit_code == 0
 
     assert (
@@ -943,3 +946,209 @@ def test_edit_rejects_duplicate_with_different_status(
     assert result.exit_code == 1
     assert "Task already exists." in result.stderr
     assert read_tasks(path) == original_tasks
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (
+            "pending",
+            [
+                "1. [PENDING] Pending high - high",
+                "2. [PENDING] Pending low - low",
+            ],
+        ),
+        ("completed", ["1. [COMPLETED] Completed high - high"]),
+        (
+            "all",
+            [
+                "1. [COMPLETED] Completed high - high",
+                "2. [PENDING] Pending high - high",
+                "3. [PENDING] Pending low - low",
+            ],
+        ),
+    ],
+)
+def test_list_filters_by_status_without_changing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+    expected: list[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Pending low", "low"),
+            Task("Completed high", "high", "", "completed"),
+            Task("Pending high", "high"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["list", "--status", status])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == expected
+    assert path.read_bytes() == original_contents
+
+    if status == "all":
+        assert runner.invoke(app, ["list"]).output == result.output
+
+
+def test_list_reports_when_no_tasks_match_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(path, [Task("Pending task", "high")])
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["list", "--status", "completed"])
+
+    assert result.exit_code == 0
+    assert "No completed tasks found." in result.output
+    assert path.read_bytes() == original_contents
+
+
+def test_list_rejects_invalid_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["list", "--status", "waiting"])
+
+    assert result.exit_code == 1
+    assert "Status must be one of: pending, completed, all, overdue." in result.stderr
+
+
+def test_list_overdue_shows_only_pending_past_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 16))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Past", "high", "2026-11-15"),
+            Task("Today", "high", "2026-11-16"),
+            Task("Completed past", "high", "2026-11-14", "completed"),
+            Task("No date", "low"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["list", "--status", "overdue"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] [OVERDUE] Past - high - due 2026-11-15",
+    ]
+    assert path.read_bytes() == original_contents
+
+
+def test_list_combines_status_priority_and_date_sort(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 1, 1))
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Late high", "high", "2026-12-01"),
+            Task("No date high", "high"),
+            Task("Early high", "high", "2026-10-01"),
+            Task("Early medium", "medium", "2026-09-01"),
+            Task("Completed high", "high", "2026-08-01", "completed"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(
+        app,
+        ["list", "--status", "pending", "--priority", "high", "--sort-by", "date"],
+    )
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] Early high - high - due 2026-10-01",
+        "2. [PENDING] Late high - high - due 2026-12-01",
+        "3. [PENDING] No date high - high",
+    ]
+    assert path.read_bytes() == original_contents
+
+
+def test_list_combines_overdue_and_priority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 16))
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Past low", "low", "2026-11-15"),
+            Task("Past high", "high", "2026-11-14"),
+            Task("Completed high", "high", "2026-11-13", "completed"),
+        ],
+    )
+
+    result = runner.invoke(
+        app,
+        ["list", "--status", "overdue", "--priority", "high", "--sort-by", "date"],
+    )
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] [OVERDUE] Past high - high - due 2026-11-14",
+    ]
+
+
+def test_list_rejects_invalid_priority_filter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["list", "--priority", "urgent"])
+
+    assert result.exit_code == 1
+    assert "Priority filter must be one of: high, medium, low, all." in result.stderr
+
+
+def test_list_highlights_overdue_without_filter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 16))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Late", "high", "2026-11-15"),
+            Task("Due today", "medium", "2026-11-16"),
+            Task("Completed late", "low", "2026-11-14", "completed"),
+        ],
+    )
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] [OVERDUE] Late - high - due 2026-11-15",
+        "2. [PENDING] Due today - medium - due 2026-11-16",
+        "3. [COMPLETED] Completed late - low - due 2026-11-14",
+    ]
+    assert path.read_bytes() == original_contents

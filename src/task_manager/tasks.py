@@ -1,4 +1,5 @@
 from dataclasses import replace
+from datetime import date
 
 from task_manager.models import InvalidNumberTasks, Task
 from task_manager.validation import (
@@ -35,6 +36,28 @@ def add_task(
     task = create_task(title, priority, due_date)
     tasks.append(task)
     return task
+
+
+def filter_tasks_by_status(tasks: list[Task], status: str) -> list[Task]:
+    if status not in ("pending", "completed", "all"):
+        raise ValueError("Status must be one of: pending, completed, all.")
+
+    if status == "all":
+        return list(tasks)
+
+    return [task for task in tasks if task.status == status]
+
+
+def is_overdue(task: Task, today: date) -> bool:
+    return (
+        task.status == "pending"
+        and task.due_date != ""
+        and date.fromisoformat(task.due_date) < today
+    )
+
+
+def filter_overdue_tasks(tasks: list[Task], today: date) -> list[Task]:
+    return [task for task in tasks if is_overdue(task, today)]
 
 
 def sort_tasks_by_priority(tasks: list[Task]) -> list[Task]:
@@ -139,3 +162,13 @@ def reopen_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
     updated_tasks[task_number - 1] = reopened_task
 
     return reopened_task, updated_tasks
+
+
+def filter_tasks_by_priority(tasks: list[Task], priority: str) -> list[Task]:
+    if priority not in ("high", "medium", "low", "all"):
+        raise ValueError("Priority filter must be one of: high, medium, low, all.")
+
+    if priority == "all":
+        return list(tasks)
+
+    return [task for task in tasks if task.priority == priority]
