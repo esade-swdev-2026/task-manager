@@ -4,7 +4,11 @@ from task_manager.models import Task
 from task_manager.tasks import is_overdue
 
 
-def view_tasks(tasks: list[Task], today: date) -> list[str]:
+def view_tasks(
+    tasks: list[Task],
+    today: date,
+    highlight_due_today: bool = False,
+) -> list[str]:
     lines: list[str] = []
 
     for index, task in enumerate(tasks, start=1):
@@ -12,6 +16,10 @@ def view_tasks(tasks: list[Task], today: date) -> list[str]:
 
         if is_overdue(task, today):
             status = f"{status} [OVERDUE]"
+        elif (
+            highlight_due_today and task.status == "pending" and task.due_date == today.isoformat()
+        ):
+            status = f"{status} [DUE TODAY]"
 
         line = f"{index}. {status} {task.title} - {task.priority}"
 

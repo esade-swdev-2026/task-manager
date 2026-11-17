@@ -22,6 +22,9 @@ from task_manager.tasks import (
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
+    task_summary,
+    tasks_due_soon,
+    tasks_for_today,
 )
 
 DATA_FILE = Path("storage_tasks") / "tasks.csv"
@@ -175,6 +178,58 @@ def list_tasks(
 
     for line in view_tasks(tasks, today):
         typer.echo(line)
+
+
+@app.command()
+def today() -> None:
+    """Show pending tasks that are overdue or due today."""
+    tasks = load_tasks_or_exit(DATA_FILE)
+    reference_date = current_date()
+
+    selected_tasks = tasks_for_today(tasks, reference_date)
+
+    if not selected_tasks:
+        typer.echo("No tasks due today or overdue.")
+        return
+
+    for line in view_tasks(selected_tasks, reference_date, highlight_due_today=True):
+        typer.echo(line)
+
+
+@app.command("due-soon")
+def due_soon() -> None:
+    """Show pending tasks due within the next seven days."""
+    tasks = load_tasks_or_exit(DATA_FILE)
+    reference_date = current_date()
+
+    selected_tasks = tasks_due_soon(tasks, reference_date)
+
+    if not selected_tasks:
+        typer.echo("No tasks due in the next seven days.")
+        return
+
+    for line in view_tasks(selected_tasks, reference_date):
+        typer.echo(line)
+
+
+@app.command()
+def summary() -> None:
+    """Show statistics about all tasks."""
+    tasks = load_tasks_or_exit(DATA_FILE)
+    statistics = task_summary(tasks, current_date())
+
+    typer.echo("Task Summary")
+    typer.echo("------------")
+    typer.echo(f"Total tasks: {statistics['total']}")
+    typer.echo(f"Pending: {statistics['pending']}")
+    typer.echo(f"Completed: {statistics['completed']}")
+    typer.echo(f"Overdue: {statistics['overdue']}")
+    typer.echo(f"Completion rate: {statistics['completion_rate']:.1f}%")
+    typer.echo("")
+    typer.echo("Tasks by priority:")
+    typer.echo(f"High: {statistics['high']}")
+    typer.echo(f"Medium: {statistics['medium']}")
+    typer.echo(f"Low: {statistics['low']}")
 
 
 @app.command()

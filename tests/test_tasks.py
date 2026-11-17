@@ -27,6 +27,9 @@ from task_manager.tasks import (
     search_tasks,
     sort_tasks_by_due_date,
     sort_tasks_by_priority,
+    task_summary,
+    tasks_due_soon,
+    tasks_for_today,
 )
 
 GROCERIES = Task("Buy groceries", "medium", "2026-11-17")
@@ -500,3 +503,145 @@ def test_filter_tasks_by_priority_preserves_original_list() -> None:
 def test_filter_tasks_by_priority_rejects_invalid_value() -> None:
     with pytest.raises(ValueError, match="Priority filter must be one of"):
         filter_tasks_by_priority([], "urgent")
+
+
+def test_tasks_for_today_filters_and_sorts_by_due_date() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Due today", "high", "2026-11-17"),
+        Task("Future", "low", "2026-11-18"),
+        Task("Overdue yesterday", "medium", "2026-11-16"),
+        Task("Completed overdue", "high", "2026-11-10", "completed"),
+        Task("No due date", "low"),
+        Task("Oldest overdue", "high", "2026-11-10"),
+    ]
+
+    result = tasks_for_today(tasks, today)
+
+    assert result == [tasks[5], tasks[2], tasks[0]]
+
+
+def test_tasks_for_today_returns_empty_when_no_tasks_match() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Future", "high", "2026-11-20"),
+        Task("Completed today", "medium", "2026-11-17", "completed"),
+        Task("No due date", "low"),
+    ]
+
+    assert tasks_for_today(tasks, today) == []
+    assert tasks_for_today([], today) == []
+
+
+def test_tasks_for_today_does_not_modify_original_list() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Due today", "high", "2026-11-17"),
+        Task("Overdue", "low", "2026-11-15"),
+    ]
+    original_tasks = list(tasks)
+
+    result = tasks_for_today(tasks, today)
+
+    assert result == [tasks[1], tasks[0]]
+    assert tasks == original_tasks
+    assert result is not tasks
+
+
+def test_tasks_due_soon_filters_and_sorts_by_date() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Day 7", "low", "2026-11-24"),
+        Task("Overdue", "high", "2026-11-16"),
+        Task("Day 1", "medium", "2026-11-18"),
+        Task("Today", "high", "2026-11-17"),
+        Task("Day 8", "high", "2026-11-25"),
+        Task("Day 3", "high", "2026-11-20"),
+        Task("Completed", "high", "2026-11-19", "completed"),
+        Task("No date", "low"),
+    ]
+
+    result = tasks_due_soon(tasks, today)
+
+    assert result == [tasks[2], tasks[5], tasks[0]]
+
+
+def test_tasks_due_soon_returns_empty_when_no_tasks_match() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Today", "high", "2026-11-17"),
+        Task("Too late", "medium", "2026-11-25"),
+        Task("Completed", "low", "2026-11-18", "completed"),
+        Task("No date", "medium"),
+    ]
+
+    assert tasks_due_soon(tasks, today) == []
+    assert tasks_due_soon([], today) == []
+
+
+def test_tasks_due_soon_does_not_modify_original_list() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Day 7", "low", "2026-11-24"),
+        Task("Day 1", "high", "2026-11-18"),
+    ]
+    original_tasks = list(tasks)
+
+    result = tasks_due_soon(tasks, today)
+
+    assert result == [tasks[1], tasks[0]]
+    assert result is not tasks
+    assert tasks == original_tasks
+
+
+def test_task_summary_calculates_correct_statistics() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Overdue high", "high", "2026-11-16"),
+        Task("Today medium", "medium", "2026-11-17"),
+        Task("Future low", "low", "2026-11-20"),
+        Task("Completed high", "high", "2026-11-15", "completed"),
+        Task("Completed medium", "medium", "", "completed"),
+    ]
+
+    result = task_summary(tasks, today)
+
+    assert result == {
+        "total": 5,
+        "pending": 3,
+        "completed": 2,
+        "overdue": 1,
+        "completion_rate": 40.0,
+        "high": 2,
+        "medium": 2,
+        "low": 1,
+    }
+
+
+def test_task_summary_handles_empty_list() -> None:
+    result = task_summary([], date(2026, 11, 17))
+
+    assert result == {
+        "total": 0,
+        "pending": 0,
+        "completed": 0,
+        "overdue": 0,
+        "completion_rate": 0.0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+    }
+
+
+def test_task_summary_does_not_modify_original_tasks() -> None:
+    tasks = [
+        Task("Pending", "high", "2026-11-16"),
+        Task("Completed", "low", "", "completed"),
+    ]
+    original_tasks = list(tasks)
+
+    task_summary(tasks, date(2026, 11, 17))
+
+    assert tasks == original_tasks
+    assert tasks[0].status == "pending"
+    assert tasks[1].status == "completed"

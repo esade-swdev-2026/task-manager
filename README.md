@@ -1,11 +1,11 @@
 # Task Manager
 
-Task Manager is a terminal application for creating and organising personal
-tasks.
+Task Manager is a terminal application for creating, organising, and tracking personal tasks.
 
-Tasks can have a priority and an optional due date. They are saved between
-program executions and can be listed in priority or date order. The application
-also prevents exact duplicates and allows saved tasks to be deleted.
+Tasks can have a priority, an optional due date, and a completion status. They are saved between program executions and can be listed, filtered, searched, edited, completed, reopened, or deleted.
+
+The application also provides dedicated views for today's tasks and upcoming deadlines, as well as a summary of task statistics.
+
 
 ## Getting started
 
@@ -44,9 +44,10 @@ The following commands create three tasks with different priorities and due
 dates.
 
 ```bash
-uv run task-manager add "Prepare finance presentation" --priority high --due-date 2026-10-20
-uv run task-manager add "Book dentist appointment" --priority low --due-date 2026-10-17
+uv run task-manager add "Prepare finance presentation" --priority high --due-date 2027-10-20
+uv run task-manager add "Book dentist appointment" --priority low --due-date 2027-10-17
 uv run task-manager add "Buy printer paper"
+
 ```
 
 The program confirms where each task has been saved:
@@ -66,9 +67,9 @@ uv run task-manager list
 ```
 
 ```text
-1. Prepare finance presentation - high - due 2026-10-20
-2. Buy printer paper - medium
-3. Book dentist appointment - low - due 2026-10-17
+1. [PENDING] Prepare finance presentation - high - due 2027-10-20
+2. [PENDING] Buy printer paper - medium
+3. [PENDING] Book dentist appointment - low - due 2027-10-17
 ```
 
 The priority order can also be requested explicitly:
@@ -86,12 +87,115 @@ uv run task-manager list --sort-by date
 ```
 
 ```text
-1. Book dentist appointment - low - due 2026-10-17
-2. Prepare finance presentation - high - due 2026-10-20
-3. Buy printer paper - medium
+1. [PENDING] Book dentist appointment - low - due 2027-10-17
+2. [PENDING] Prepare finance presentation - high - due 2027-10-20
+3. [PENDING] Buy printer paper - medium
 ```
 
 Tasks without a due date are placed at the end.
+
+Each task displays its current status as `[PENDING]` or `[COMPLETED]`. Pending tasks with a due date earlier than today are also marked as `[OVERDUE]`.
+
+### Filter tasks
+
+The `list` command supports filtering by status and priority:
+
+```bash
+uv run task-manager list --status pending
+uv run task-manager list --status completed
+uv run task-manager list --status overdue
+uv run task-manager list --priority high
+```
+
+Filters can also be combined with sorting:
+
+```bash
+uv run task-manager list --status pending --priority high --sort-by date
+```
+
+Filtering only changes which tasks are displayed; it does not modify the saved CSV file.
+
+
+
+### Complete and reopen tasks
+
+Mark a task as completed:
+
+```bash
+uv run task-manager done
+```
+
+The application displays the tasks and asks for the number of the task to complete. Its status changes from `pending` to `completed`.
+
+To mark a completed task as pending again:
+
+```bash
+uv run task-manager reopen
+```
+
+The application asks for the number of the task to reopen.
+
+Both commands update the task status in the CSV file without deleting the task.
+
+### Tasks for today
+
+Display pending tasks that are due today or overdue:
+
+```bash
+uv run task-manager today
+```
+
+Tasks are sorted by due date. Overdue tasks are marked as `[OVERDUE]`, while tasks due today are marked as `[DUE TODAY]`.
+
+Completed tasks are excluded from this view.
+
+### Upcoming tasks
+
+Display pending tasks due within the next seven days:
+
+```bash
+uv run task-manager due-soon
+```
+
+This command includes tasks due from tomorrow through seven days from today, inclusive.
+
+Tasks due today, overdue tasks, and completed tasks are excluded. Results are sorted by due date.
+
+### Task summary
+
+Display an overview of all saved tasks:
+
+```bash
+uv run task-manager summary
+```
+
+The summary includes:
+
+- Total number of tasks.
+- Pending and completed tasks.
+- Number of overdue pending tasks.
+- Completion rate as a percentage.
+- Task counts by priority (`high`, `medium`, and `low`).
+
+For example:
+
+```text
+Task Summary
+------------
+Total tasks: 5
+Pending: 3
+Completed: 2
+Overdue: 1
+Completion rate: 40.0%
+
+Tasks by priority:
+High: 2
+Medium: 2
+Low: 1
+```
+
+The summary includes both pending and completed tasks when counting priorities. It does not modify the CSV file.
+
 
 ### Delete a task
 
@@ -150,32 +254,45 @@ At least one field must be provided.
 
 ### Task selection
 
-When editing or deleting a task, enter the number shown in the displayed list.
+When editing, deleting, completing, or reopening a task, enter the number shown in the displayed list.
 
 Tasks are displayed in priority order, so these numbers represent temporary positions, not permanent task IDs.
 
-Invalid selections do not modify saved tasks. Editing or deleting tasks preserves the original order of the remaining tasks in the CSV file.
+Invalid selections do not modify saved tasks. Updating or deleting tasks preserves the original order of the remaining tasks in the CSV file.
 
 ## Command reference
 
 | Command | Purpose | Inputs |
 |---|---|---|
 | `add` | Validates and saves a new task. | Required title; optional `--priority` and `--due-date`. |
-| `list` | Displays every saved task. | Optional `--sort-by priority` or `--sort-by date`. |
-| `delete` | Displays the tasks and deletes the selected number. | The task number is requested interactively. |
+| `list` | Displays saved tasks with optional sorting and filtering. | Optional `--sort-by`, `--status`, and `--priority`. |
+| `done` | Marks a selected task as completed. | Task number requested interactively. |
+| `reopen` | Changes a completed task back to pending. | Task number requested interactively. |
+| `delete` | Deletes a selected task. | Task number requested interactively. |
 | `search` | Searches saved tasks by title, ignoring case. | Required keyword. |
-| `edit` | Updates a task selected interactively by number. | At least one of `--title`, `--priority` or `--due-date`. |
-
+| `edit` | Updates a selected task. | At least one of `--title`, `--priority`, or `--due-date`. |
+| `today` | Displays pending tasks due today or overdue. | No arguments. |
+| `due-soon` | Displays pending tasks due in the next seven days, excluding today. | No arguments. |
+| `summary` | Displays task statistics and completion rate. | No arguments. |
+| `priority` | Displays task counts and lists tasks sorted by priority. | No arguments. |
 
 More information about any command is available through `--help`:
 
 ```bash
+uv run task-manager --help
 uv run task-manager add --help
 uv run task-manager list --help
+uv run task-manager done --help
+uv run task-manager reopen --help
 uv run task-manager delete --help
 uv run task-manager search --help
 uv run task-manager edit --help
+uv run task-manager today --help
+uv run task-manager due-soon --help
+uv run task-manager summary --help
+uv run task-manager priority --help
 ```
+
 
 ## Input rules
 
@@ -241,17 +358,20 @@ storage_tasks/tasks.csv
 The directory and CSV file are created automatically when the first task is
 added.
 
-The CSV contains three fields:
+The CSV contains four fields:
 
 ```text
-title,priority,due_date
+title,priority,due_date,status
 ```
+
+Tasks are marked as `pending` or `completed`. New tasks have `pending` status by default.
 
 The `storage_tasks/` directory is ignored by Git. Task data therefore remains
 local and is not included in commits.
 
 Commands should be run from the project directory so that they use the same
 CSV file.
+
 
 ## Project design
 
@@ -290,11 +410,13 @@ Tests follow the same separation:
 ```text
 tests/
     test_cli.py
+    test_edit_tasks.py
     test_formatting.py
     test_models.py
     test_storage.py
     test_tasks.py
     test_validation.py
+
 ```
 
 Most tests exercise pure functions with normal Python data. Storage and

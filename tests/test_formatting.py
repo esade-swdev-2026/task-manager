@@ -51,3 +51,27 @@ def test_view_tasks_marks_only_overdue_pending_tasks() -> None:
         "3. [COMPLETED] Completed late - low - due 2026-11-14",
         "4. [PENDING] No due date - low",
     ]
+
+
+def test_view_tasks_highlights_due_today_when_enabled() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Overdue task", "high", "2026-11-16"),
+        Task("Due today", "medium", "2026-11-17"),
+        Task("Completed today", "low", "2026-11-17", "completed"),
+    ]
+
+    result = view_tasks(tasks, today, highlight_due_today=True)
+
+    assert "[OVERDUE] Overdue task" in result[0]
+    assert "[DUE TODAY] Due today" in result[1]
+    assert "[DUE TODAY]" not in result[2]
+
+
+def test_view_tasks_preserves_default_format_for_due_today() -> None:
+    today = date(2026, 11, 17)
+    tasks = [Task("Due today", "high", "2026-11-17")]
+
+    result = view_tasks(tasks, today)
+
+    assert result == ["1. [PENDING] Due today - high - due 2026-11-17"]
