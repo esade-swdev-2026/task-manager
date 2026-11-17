@@ -326,7 +326,6 @@ def done(ctx: typer.Context) -> None:
 
 
 @app.command()
-@app.command()
 def reopen(ctx: typer.Context) -> None:
     """Reopen a completed task."""
     data_file = get_data_file(ctx)
