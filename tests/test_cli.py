@@ -1361,3 +1361,248 @@ def test_summary_handles_missing_csv(
     assert result.exit_code == 0
     assert "Total tasks: 0" in result.output
     assert "Completion rate: 0.0%" in result.output
+
+
+def test_custom_data_files_keep_tasks_separate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    university_file = tmp_path / "university.csv"
+    personal_file = tmp_path / "personal.csv"
+
+    result_university = runner.invoke(
+        app,
+        ["--data-file", str(university_file), "add", "Study Python"],
+    )
+
+    result_personal = runner.invoke(
+        app,
+        ["--data-file", str(personal_file), "add", "Buy groceries"],
+    )
+
+    assert result_university.exit_code == 0
+    assert result_personal.exit_code == 0
+
+    university_tasks = read_tasks(university_file)
+    personal_tasks = read_tasks(personal_file)
+
+    assert [task.title for task in university_tasks] == ["Study Python"]
+    assert [task.title for task in personal_tasks] == ["Buy groceries"]
+
+    university_list = runner.invoke(
+        app,
+        ["--data-file", str(university_file), "list"],
+    )
+
+    personal_list = runner.invoke(
+        app,
+        ["--data-file", str(personal_file), "list"],
+    )
+
+    assert university_list.exit_code == 0
+    assert personal_list.exit_code == 0
+
+    assert "Study Python" in university_list.output
+    assert "Buy groceries" not in university_list.output
+
+    assert "Buy groceries" in personal_list.output
+    assert "Study Python" not in personal_list.output
+
+    assert not Path("storage_tasks/tasks.csv").exists()
+
+
+def test_custom_data_file_relative_path_with_spaces(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    relative_file = Path("my task folders") / "semester tasks.csv"
+
+    result = runner.invoke(
+        app,
+        ["--data-file", str(relative_file), "add", "Prepare exam"],
+    )
+
+    assert result.exit_code == 0
+    assert relative_file.exists()
+
+    saved_tasks = read_tasks(relative_file)
+    assert [task.title for task in saved_tasks] == ["Prepare exam"]
+
+    list_result = runner.invoke(
+        app,
+        ["--data-file", str(relative_file), "list"],
+    )
+
+    assert list_result.exit_code == 0
+    assert "Prepare exam" in list_result.output
+
+    assert not Path("storage_tasks/tasks.csv").exists()
+
+
+def test_default_data_file_still_works(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    default_file = Path("storage_tasks/tasks.csv")
+
+    result = runner.invoke(
+        app,
+        ["add", "Study Python"],
+    )
+
+    assert result.exit_code == 0
+    assert default_file.exists()
+
+    saved_tasks = read_tasks(default_file)
+    assert len(saved_tasks) == 1
+    assert saved_tasks[0].title == "Study Python"
+
+    list_result = runner.invoke(app, ["list"])
+
+    assert list_result.exit_code == 0
+    assert "Study Python" in list_result.output
+
+
+def test_custom_data_file_done_and_reopen(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    university_file = tmp_path / "university.csv"
+    personal_file = tmp_path / "personal.csv"
+
+    # Create one task in each file
+    assert (
+        runner.invoke(
+            app,
+            ["--data-file", str(university_file), "add", "Study Python"],
+        ).exit_code
+        == 0
+    )
+
+    assert (
+        runner.invoke(
+            app,
+            ["--data-file", str(personal_file), "add", "Buy groceries"],
+        ).exit_code
+        == 0
+    )
+
+    original_personal_csv = personal_file.read_bytes()
+
+    # Complete the university task
+    result_done = runner.invoke(
+        app,
+        ["--data-file", str(university_file), "done"],
+        input="1\n",
+    )
+
+    assert result_done.exit_code == 0
+    assert read_tasks(university_file)[0].status == "completed"
+    assert personal_file.read_bytes() == original_personal_csv
+
+    # Reopen the university task
+    result_reopen = runner.invoke(
+        app,
+        ["--data-file", str(university_file), "reopen"],
+        input="1\n",
+    )
+
+    assert result_reopen.exit_code == 0
+    assert read_tasks(university_file)[0].status == "pending"
+    assert personal_file.read_bytes() == original_personal_csv
+
+
+def test_custom_data_file_delete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    university_file = tmp_path / "university.csv"
+    personal_file = tmp_path / "personal.csv"
+
+    assert (
+        runner.invoke(
+            app,
+            ["--data-file", str(university_file), "add", "Study Finance", "--priority", "low"],
+        ).exit_code
+        == 0
+    )
+
+    assert (
+        runner.invoke(
+            app,
+            ["--data-file", str(university_file), "add", "Study Python", "--priority", "high"],
+        ).exit_code
+        == 0
+    )
+
+    assert (
+        runner.invoke(
+            app,
+            ["--data-file", str(personal_file), "add", "Buy groceries"],
+        ).exit_code
+        == 0
+    )
+
+    original_personal_csv = personal_file.read_bytes()
+
+    result = runner.invoke(
+        app,
+        ["--data-file", str(university_file), "delete"],
+        input="1\n",
+    )
+
+    assert result.exit_code == 0
+    assert "deleted Study Python" in result.output
+
+    saved_tasks = read_tasks(university_file)
+    assert [task.title for task in saved_tasks] == ["Study Finance"]
+
+    assert personal_file.read_bytes() == original_personal_csv
+
+
+def test_custom_data_file_edit_search_and_summary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    custom_file = tmp_path / "university.csv"
+
+    result = runner.invoke(
+        app,
+        ["--data-file", str(custom_file), "add", "Study Python"],
+    )
+    assert result.exit_code == 0
+
+    result = runner.invoke(
+        app,
+        ["--data-file", str(custom_file), "edit", "--priority", "high"],
+        input="1\n",
+    )
+    assert result.exit_code == 0
+    assert read_tasks(custom_file)[0].priority == "high"
+
+    result = runner.invoke(
+        app,
+        ["--data-file", str(custom_file), "search", "Python"],
+    )
+    assert result.exit_code == 0
+    assert "Study Python" in result.output
+
+    result = runner.invoke(
+        app,
+        ["--data-file", str(custom_file), "summary"],
+    )
+    assert result.exit_code == 0
+    assert "Total tasks: 1" in result.output
+    assert "High: 1" in result.output

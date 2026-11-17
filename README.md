@@ -252,6 +252,30 @@ Invalid values, invalid task numbers and changes that would create an
 exact duplicate are rejected without modifying saved data.
 At least one field must be provided.
 
+### Custom data file
+
+By default, tasks are stored in `storage_tasks/tasks.csv`.
+
+You can use a different CSV file with the global `--data-file` option:
+
+```bash
+uv run task-manager --data-file university.csv add "Study Python"
+uv run task-manager --data-file university.csv list
+```
+
+Different files can be used to manage separate task lists:
+
+```bash
+uv run task-manager --data-file personal.csv add "Buy groceries"
+uv run task-manager --data-file personal.csv list
+```
+
+The option works with all commands, including `add`, `list`, `edit`, `delete`, `done`, `reopen`, `search`, `priority`, `today`, `due-soon`, and `summary`.
+
+Relative and absolute paths are supported, including paths containing spaces. Missing parent directories are created when saving tasks.
+
+If `--data-file` is not provided, the default CSV file is used. Each file remains independent, so tasks from different files are never mixed.
+
 ### Task selection
 
 When editing, deleting, completing, or reopening a task, enter the number shown in the displayed list.

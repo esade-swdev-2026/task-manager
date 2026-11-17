@@ -1,6 +1,7 @@
 import csv
 from datetime import date
 from pathlib import Path
+from typing import Annotated
 
 import typer
 
@@ -75,12 +76,29 @@ def prompt_task_number(action: str) -> int:
 
 
 @app.callback()
-def main() -> None:
+def main(
+    ctx: typer.Context,
+    data_file: Annotated[
+        Path,
+        typer.Option(
+            "--data-file",
+            help="Path to the CSV file used to store tasks.",
+        ),
+    ] = DATA_FILE,
+) -> None:
     """Manage your tasks."""
+    ctx.obj = data_file
+
+
+def get_data_file(ctx: typer.Context) -> Path:
+    data_file = ctx.obj
+    assert isinstance(data_file, Path)
+    return data_file
 
 
 @app.command()
 def add(
+    ctx: typer.Context,
     title: str,
     priority: str = typer.Option(
         "medium",
@@ -91,29 +109,31 @@ def add(
         help="Due date in YYYY-MM-DD format.",
     ),
 ) -> None:
+    data_file = get_data_file(ctx)
     try:
         task = create_task(title, priority, due_date)
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
-    existing_tasks = load_tasks_or_exit(DATA_FILE)
+    existing_tasks = load_tasks_or_exit(data_file)
 
     if is_duplicate(task, existing_tasks):
         typer.echo("Task already exists.", err=True)
         raise typer.Exit(1)
 
     try:
-        append_task(DATA_FILE, task)
+        append_task(data_file, task)
     except OSError:
-        typer.echo(f"could not write {DATA_FILE}", err=True)
+        typer.echo(f"could not write {data_file}", err=True)
         raise typer.Exit(1) from None
 
-    typer.echo(f"added {task.title} with {task.priority} priority to {DATA_FILE}")
+    typer.echo(f"added {task.title} with {task.priority} priority to {data_file}")
 
 
 @app.command("list")
 def list_tasks(
+    ctx: typer.Context,
     sort_by: str = typer.Option(
         "priority",
         help="Sort tasks by priority or date.",
@@ -127,6 +147,7 @@ def list_tasks(
         help="Show tasks with high, medium, low, or all priorities.",
     ),
 ) -> None:
+    data_file = get_data_file(ctx)
     normalized_sort = sort_by.strip().lower()
 
     if normalized_sort not in SORT_OPTIONS:
@@ -148,7 +169,7 @@ def list_tasks(
         typer.echo(f"Priority filter must be one of: {allowed}.", err=True)
         raise typer.Exit(1)
 
-    tasks = load_tasks_or_exit(DATA_FILE)
+    tasks = load_tasks_or_exit(data_file)
 
     if not tasks:
         typer.echo("No tasks found.")
@@ -181,9 +202,10 @@ def list_tasks(
 
 
 @app.command()
-def today() -> None:
+def today(ctx: typer.Context) -> None:
     """Show pending tasks that are overdue or due today."""
-    tasks = load_tasks_or_exit(DATA_FILE)
+    data_file = get_data_file(ctx)
+    tasks = load_tasks_or_exit(data_file)
     reference_date = current_date()
 
     selected_tasks = tasks_for_today(tasks, reference_date)
@@ -197,9 +219,10 @@ def today() -> None:
 
 
 @app.command("due-soon")
-def due_soon() -> None:
+def due_soon(ctx: typer.Context) -> None:
     """Show pending tasks due within the next seven days."""
-    tasks = load_tasks_or_exit(DATA_FILE)
+    data_file = get_data_file(ctx)
+    tasks = load_tasks_or_exit(data_file)
     reference_date = current_date()
 
     selected_tasks = tasks_due_soon(tasks, reference_date)
@@ -213,9 +236,10 @@ def due_soon() -> None:
 
 
 @app.command()
-def summary() -> None:
+def summary(ctx: typer.Context) -> None:
     """Show statistics about all tasks."""
-    tasks = load_tasks_or_exit(DATA_FILE)
+    data_file = get_data_file(ctx)
+    tasks = load_tasks_or_exit(data_file)
     statistics = task_summary(tasks, current_date())
 
     typer.echo("Task Summary")
@@ -233,8 +257,9 @@ def summary() -> None:
 
 
 @app.command()
-def delete() -> None:
-    tasks = load_tasks_or_exit(DATA_FILE)
+def delete(ctx: typer.Context) -> None:
+    data_file = get_data_file(ctx)
+    tasks = load_tasks_or_exit(data_file)
 
     if not tasks:
         typer.echo("No tasks found.", err=True)
@@ -256,18 +281,19 @@ def delete() -> None:
 
     # Save remaining tasks without changing their original order
     try:
-        write_tasks(DATA_FILE, remaining_tasks)
+        write_tasks(data_file, remaining_tasks)
     except OSError:
-        typer.echo(f"could not write {DATA_FILE}", err=True)
+        typer.echo(f"could not write {data_file}", err=True)
         raise typer.Exit(1) from None
 
     typer.echo(f"deleted {deleted_task.title}")
 
 
 @app.command()
-def done() -> None:
+def done(ctx: typer.Context) -> None:
     """Mark a pending task as completed."""
-    tasks = load_tasks_or_exit(DATA_FILE)
+    data_file = get_data_file(ctx)
+    tasks = load_tasks_or_exit(data_file)
 
     pending_tasks = [task for task in tasks if task.status == "pending"]
 
@@ -291,18 +317,20 @@ def done() -> None:
         raise typer.Exit(1) from None
 
     try:
-        write_tasks(DATA_FILE, updated_tasks)
+        write_tasks(data_file, updated_tasks)
     except OSError:
-        typer.echo(f"could not write {DATA_FILE}", err=True)
+        typer.echo(f"could not write {data_file}", err=True)
         raise typer.Exit(1) from None
 
     typer.echo(f"completed {completed_task.title}")
 
 
 @app.command()
-def reopen() -> None:
+@app.command()
+def reopen(ctx: typer.Context) -> None:
     """Reopen a completed task."""
-    tasks = load_tasks_or_exit(DATA_FILE)
+    data_file = get_data_file(ctx)
+    tasks = load_tasks_or_exit(data_file)
 
     completed_tasks = [task for task in tasks if task.status == "completed"]
 
@@ -326,17 +354,18 @@ def reopen() -> None:
         raise typer.Exit(1) from None
 
     try:
-        write_tasks(DATA_FILE, updated_tasks)
+        write_tasks(data_file, updated_tasks)
     except OSError:
-        typer.echo(f"could not write {DATA_FILE}", err=True)
+        typer.echo(f"could not write {data_file}", err=True)
         raise typer.Exit(1) from None
 
     typer.echo(f"reopened {reopened_task.title}")
 
 
 @app.command()
-def priority() -> None:
-    tasks = load_tasks_or_exit(DATA_FILE)
+def priority(ctx: typer.Context) -> None:
+    data_file = get_data_file(ctx)
+    tasks = load_tasks_or_exit(data_file)
 
     counts = count_tasks_by_priority(tasks)
 
@@ -357,7 +386,7 @@ def priority() -> None:
 
 
 @app.command()
-def search(keyword: str) -> None:
+def search(ctx: typer.Context, keyword: str) -> None:
     """Search saved tasks by a keyword in their title."""
     normalized_keyword = keyword.strip()
 
@@ -365,7 +394,7 @@ def search(keyword: str) -> None:
         typer.echo("Search keyword cannot be empty.", err=True)
         raise typer.Exit(1)
 
-    tasks = load_tasks_or_exit(DATA_FILE)
+    tasks = load_tasks_or_exit(get_data_file(ctx))
     if not tasks:
         typer.echo("No tasks found.")
         return
@@ -382,6 +411,7 @@ def search(keyword: str) -> None:
 
 @app.command()
 def edit(
+    ctx: typer.Context,
     title: str | None = typer.Option(None, help="New task title."),
     priority: str | None = typer.Option(None, help="New priority: low, medium, or high."),
     due_date: str | None = typer.Option(
@@ -390,11 +420,13 @@ def edit(
     ),
 ) -> None:
     """Edit a saved task selected by its displayed number."""
+    data_file = get_data_file(ctx)
+
     if title is None and priority is None and due_date is None:
         typer.echo("Provide at least one field to edit.", err=True)
         raise typer.Exit(1)
 
-    tasks = load_tasks_or_exit(DATA_FILE)
+    tasks = load_tasks_or_exit(data_file)
 
     if not tasks:
         typer.echo("No tasks found.", err=True)
@@ -434,9 +466,9 @@ def edit(
         raise typer.Exit(1)
 
     try:
-        write_tasks(DATA_FILE, updated_tasks)
+        write_tasks(data_file, updated_tasks)
     except OSError:
-        typer.echo(f"could not write {DATA_FILE}", err=True)
+        typer.echo(f"could not write {data_file}", err=True)
         raise typer.Exit(1) from None
 
     typer.echo(f"edited {edited_task.title}")
