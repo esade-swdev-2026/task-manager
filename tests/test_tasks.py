@@ -742,3 +742,43 @@ def test_recompleting_recurring_task_does_not_duplicate_next() -> None:
 
     assert len(after_second_completion) == 2
     assert after_second_completion[1].due_date == "2026-11-19"
+
+
+def test_recurring_task_stops_after_last_inclusive_date() -> None:
+    tasks = [Task("Study", "high", "2026-11-18", "pending", "daily", "2026-11-19")]
+
+    _, first = complete_task(tasks, 1, date(2026, 11, 18))
+    _, last = complete_task(first, 2, date(2026, 11, 19))
+
+    assert [task.due_date for task in last] == ["2026-11-18", "2026-11-19"]
+    assert all(task.status == "completed" for task in last)
+
+
+def test_old_recurring_task_skips_missed_dates() -> None:
+    task = Task("Study", "high", "2026-11-15", "pending", "daily", "2026-11-20")
+
+    _, updated = complete_task([task], 1, date(2026, 11, 18))
+
+    assert [item.due_date for item in updated] == ["2026-11-15", "2026-11-18"]
+
+
+def test_skipping_months_uses_original_due_day() -> None:
+    task = Task("Rent", "high", "2026-01-31", "pending", "monthly", "2026-04-30")
+
+    _, updated = complete_task([task], 1, date(2026, 3, 1))
+
+    assert updated[1].due_date == "2026-03-31"
+
+
+def test_recurring_task_does_not_generate_date_after_end() -> None:
+    task = Task("Study", "high", "2026-11-15", "pending", "daily", "2026-11-17")
+
+    _, updated = complete_task([task], 1, date(2026, 11, 18))
+
+    assert len(updated) == 1
+    assert updated[0].status == "completed"
+
+
+def test_create_recurring_task_rejects_end_before_first_date() -> None:
+    with pytest.raises(ValueError, match="End date must be on or after the due date"):
+        create_task("Study", due_date="2026-11-18", recurrence="daily", repeat_until="2026-11-17")

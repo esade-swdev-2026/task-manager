@@ -22,6 +22,7 @@ def edit_task(
         due_date=original_task.due_date if due_date is None else due_date,
         status=original_task.status,
         recurrence=original_task.recurrence,
+        repeat_until=original_task.repeat_until,
     )
 
     updated_tasks = list(tasks)

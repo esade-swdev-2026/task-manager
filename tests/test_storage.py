@@ -326,3 +326,33 @@ def test_append_recurring_task_keeps_recurrence(tmp_path: Path) -> None:
     assert path.read_text(encoding="utf-8").splitlines()[0] == (
         "title,priority,due_date,status,recurrence"
     )
+
+
+def test_bounded_recurrence_round_trips_with_regular_tasks(tmp_path: Path) -> None:
+    path = tmp_path / "tasks.csv"
+    tasks = [
+        Task("Buy groceries"),
+        Task("Study", "high", "2026-11-18", "pending", "weekly", "2026-12-16"),
+    ]
+
+    write_tasks(path, tasks)
+
+    assert read_tasks(path) == tasks
+    assert path.read_text(encoding="utf-8").splitlines()[0] == (
+        "title,priority,due_date,status,recurrence,repeat_until"
+    )
+
+
+def test_invalid_end_date_in_csv_does_not_change_file(tmp_path: Path) -> None:
+    path = tmp_path / "tasks.csv"
+    path.write_text(
+        "title,priority,due_date,status,recurrence,repeat_until\n"
+        "Study,high,2026-11-18,pending,daily,2026-11-17\n",
+        encoding="utf-8",
+    )
+    original = path.read_bytes()
+
+    with pytest.raises(ValueError, match="Invalid CSV row 2"):
+        read_tasks(path)
+
+    assert path.read_bytes() == original
