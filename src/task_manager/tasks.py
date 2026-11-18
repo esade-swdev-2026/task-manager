@@ -20,12 +20,18 @@ def create_task(
     due_date: str = "",
     status: str = "pending",
     recurrence: str = "none",
+    repeat_until: str = "",
 ) -> Task:
     normalized_due_date = normalize_due_date(due_date)
     normalized_recurrence = normalize_recurrence(recurrence)
+    normalized_repeat_until = normalize_due_date(repeat_until)
 
     if normalized_recurrence != "none" and not normalized_due_date:
         raise ValueError("Recurring tasks require a due date.")
+    if normalized_repeat_until and normalized_recurrence == "none":
+        raise ValueError("An end date requires a recurring task.")
+    if normalized_repeat_until and normalized_repeat_until < normalized_due_date:
+        raise ValueError("End date must be on or after the due date.")
 
     return Task(
         title=normalize_title(title),
@@ -33,6 +39,7 @@ def create_task(
         due_date=normalized_due_date,
         status=normalize_status(status),
         recurrence=normalized_recurrence,
+        repeat_until=normalized_repeat_until,
     )
 
 
@@ -188,7 +195,9 @@ def search_tasks(tasks: list[Task], keyword: str) -> list[Task]:
     return [task for task in tasks if keyword.lower() in task.title.lower()]
 
 
-def complete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
+def complete_task(
+    tasks: list[Task], task_number: int, today: date | None = None
+) -> tuple[Task, list[Task]]:
     if task_number < 1 or task_number > len(tasks):
         raise InvalidNumberTasks("Task number does not exist.")
 
@@ -204,31 +213,55 @@ def complete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]
 
     if original_task.recurrence != "none":
         due = date.fromisoformat(original_task.due_date)
+        next_date = next_occurrence(due, original_task.recurrence, today)
 
-        if original_task.recurrence == "daily":
-            next_date = due + timedelta(days=1)
-        elif original_task.recurrence == "weekly":
-            next_date = due + timedelta(days=7)
-        elif original_task.recurrence == "monthly":
-            next_month = due.month % 12 + 1
-            next_year = due.year + (due.month == 12)
-            next_day = min(due.day, monthrange(next_year, next_month)[1])
-            next_date = date(next_year, next_month, next_day)
-        else:
-            raise ValueError("Invalid recurrence.")
-
-        next_task = replace(original_task, due_date=next_date.isoformat())
-
-        if not any(
-            task.title == next_task.title
-            and task.priority == next_task.priority
-            and task.due_date == next_task.due_date
-            and task.recurrence == next_task.recurrence
-            for task in updated_tasks
+        if next_date is not None and (
+            not original_task.repeat_until
+            or next_date <= date.fromisoformat(original_task.repeat_until)
         ):
-            updated_tasks.append(next_task)
+            next_task = replace(original_task, due_date=next_date.isoformat())
+
+            if not any(
+                task.title == next_task.title
+                and task.priority == next_task.priority
+                and task.due_date == next_task.due_date
+                and task.recurrence == next_task.recurrence
+                and task.repeat_until == next_task.repeat_until
+                for task in updated_tasks
+            ):
+                updated_tasks.append(next_task)
 
     return completed_task, updated_tasks
+
+
+def next_occurrence(due: date, recurrence: str, today: date | None = None) -> date | None:
+    """Find the next scheduled date, skipping missed occurrences when given today."""
+    if recurrence in ("daily", "weekly"):
+        interval = 1 if recurrence == "daily" else 7
+        days_to_today = (today - due).days if today else 0
+        steps = max(1, (days_to_today + interval - 1) // interval)
+        try:
+            return due + timedelta(days=interval * steps)
+        except OverflowError:
+            return None
+
+    if recurrence == "monthly":
+        months = 1
+        if today and today > due:
+            months = max(1, (today.year - due.year) * 12 + today.month - due.month)
+        while True:
+            month_index = due.year * 12 + due.month - 1 + months
+            year, zero_month = divmod(month_index, 12)
+            if year > 9999:
+                return None
+            candidate = date(
+                year, zero_month + 1, min(due.day, monthrange(year, zero_month + 1)[1])
+            )
+            if today is None or candidate >= today:
+                return candidate
+            months += 1
+
+    raise ValueError("Invalid recurrence.")
 
 
 def reopen_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:

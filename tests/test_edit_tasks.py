@@ -186,3 +186,13 @@ def test_edit_task_preserves_recurrence() -> None:
     expected = Task("Study Software", "high", "2026-11-18", "pending", "weekly")
     assert edited == expected
     assert updated == [expected]
+
+
+def test_edit_task_preserves_recurrence_end_date() -> None:
+    original = Task("Study", "high", "2026-11-18", "pending", "weekly", "2026-12-16")
+
+    edited, updated = edit_task([original], 1, title="Study Python")
+
+    expected = Task("Study Python", "high", "2026-11-18", "pending", "weekly", "2026-12-16")
+    assert edited == expected
+    assert updated == [expected]

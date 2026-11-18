@@ -1647,22 +1647,62 @@ def test_add_and_complete_daily_recurring_task(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 18))
     path = Path("storage_tasks/tasks.csv")
 
     added = runner.invoke(
         app,
-        ["add", "Study Python", "--due-date", "2026-11-18", "--repeat", "daily"],
+        [
+            "add",
+            "Study Python",
+            "--due-date",
+            "2026-11-18",
+            "--repeat",
+            "daily",
+            "--repeat-until",
+            "2026-11-19",
+        ],
     )
 
     assert added.exit_code == 0
-    assert read_tasks(path) == [Task("Study Python", "medium", "2026-11-18", "pending", "daily")]
+    assert read_tasks(path) == [
+        Task("Study Python", "medium", "2026-11-18", "pending", "daily", "2026-11-19")
+    ]
 
     completed = runner.invoke(app, ["done"], input="1\n")
 
     assert completed.exit_code == 0
     assert read_tasks(path) == [
-        Task("Study Python", "medium", "2026-11-18", "completed", "daily"),
-        Task("Study Python", "medium", "2026-11-19", "pending", "daily"),
+        Task("Study Python", "medium", "2026-11-18", "completed", "daily", "2026-11-19"),
+        Task("Study Python", "medium", "2026-11-19", "pending", "daily", "2026-11-19"),
+    ]
+
+
+def test_recurring_cli_requires_end_date_without_creating_file(tmp_path: Path) -> None:
+    path = tmp_path / "tasks.csv"
+    result = runner.invoke(
+        app,
+        ["--data-file", str(path), "add", "Study", "--due-date", "2026-11-18", "--repeat", "daily"],
+    )
+
+    assert result.exit_code == 1
+    assert "Recurring tasks require --repeat-until." in result.output
+    assert not path.exists()
+
+
+def test_completing_overdue_recurring_task_skips_past_dates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 18))
+    path = tmp_path / "tasks.csv"
+    write_tasks(path, [Task("Study", "high", "2026-11-15", "pending", "daily", "2026-11-19")])
+
+    result = runner.invoke(app, ["--data-file", str(path), "done"], input="1\n")
+
+    assert result.exit_code == 0
+    assert [(task.due_date, task.status) for task in read_tasks(path)] == [
+        ("2026-11-15", "completed"),
+        ("2026-11-18", "pending"),
     ]
 
 

@@ -143,11 +143,18 @@ def add(
         "--repeat",
         help="Repeat the task: none, daily, weekly, or monthly.",
     ),
+    repeat_until: str = typer.Option(
+        "",
+        "--repeat-until",
+        help="Last occurrence date in YYYY-MM-DD format. Required with --repeat.",
+    ),
 ) -> None:
     data_file = get_data_file(ctx)
 
     try:
-        task = create_task(title, priority, due_date, recurrence=repeat)
+        task = create_task(title, priority, due_date, recurrence=repeat, repeat_until=repeat_until)
+        if task.recurrence != "none" and not task.repeat_until:
+            raise ValueError("Recurring tasks require --repeat-until.")
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
@@ -329,7 +336,7 @@ def done(ctx: typer.Context) -> None:
     original_task_number = select_task_number(tasks, pending_tasks, "complete")
 
     try:
-        completed_task, updated_tasks = complete_task(tasks, original_task_number)
+        completed_task, updated_tasks = complete_task(tasks, original_task_number, current_date())
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None

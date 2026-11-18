@@ -137,6 +137,26 @@ The application asks for the number of the task to reopen.
 
 Both commands update the task status in the CSV file without deleting the task.
 
+### Recurring tasks
+
+Add a task that repeats daily, weekly, or monthly with a required final date:
+
+```bash
+uv run task-manager add "Study Python" --due-date 2026-11-18 --repeat daily --repeat-until 2026-11-25
+```
+
+The first occurrence must have a due date. `--repeat-until` must be on or after
+that date and is inclusive: an occurrence on the end date is created, but none
+after it. When you complete a recurring task with `done`, the completed task
+stays in the CSV and the next pending occurrence is created automatically.
+Completing an overdue task skips missed dates; the next occurrence may be due
+today, but will not be dated in the past. Reopening and completing a task again
+does not create an identical next occurrence. Monthly dates are capped at the
+last day of shorter months (for example, January 31 → February 28 in 2026).
+
+Existing CSV files containing recurring tasks without an end date remain
+readable. These older recurring tasks retain their original unlimited schedule.
+
 ### Tasks for today
 
 Display pending tasks that are due today or overdue:
@@ -317,7 +337,7 @@ Invalid selections do not modify saved tasks. Updating or deleting tasks preserv
 
 | Command | Purpose | Inputs |
 |---|---|---|
-| `add` | Validates and saves a new task. | Required title; optional `--priority` and `--due-date`. |
+| `add` | Validates and saves a new task. | Required title; optional `--priority` and `--due-date`; for recurring tasks, `--repeat` and `--repeat-until` are required. |
 | `list` | Displays saved tasks with optional sorting and filtering. | Optional `--sort-by`, `--status`, and `--priority`. |
 | `done` | Marks a selected task as completed. | Task number requested interactively. |
 | `reopen` | Changes a completed task back to pending. | Task number requested interactively. |
@@ -326,6 +346,8 @@ Invalid selections do not modify saved tasks. Updating or deleting tasks preserv
 | `edit` | Updates a selected task. | At least one of `--title`, `--priority`, or `--due-date`. |
 | `today` | Displays pending tasks due today or overdue. | No arguments. |
 | `due-soon` | Displays pending tasks due in the next seven days, excluding today. | No arguments. |
+| `weekly-review` | Displays overdue tasks, upcoming tasks, and the completed count. | No arguments. |
+| `calendar` | Displays tasks due in a monthly calendar. | Optional `--month` and `--year`. |
 | `summary` | Displays task statistics and completion rate. | No arguments. |
 | `priority` | Displays task counts and lists tasks sorted by priority. | No arguments. |
 
@@ -412,11 +434,15 @@ storage_tasks/tasks.csv
 The directory and CSV file are created automatically when the first task is
 added.
 
-The CSV contains four fields:
+Ordinary tasks use four fields:
 
 ```text
 title,priority,due_date,status
 ```
+
+Recurring tasks add a `recurrence` column. Tasks with an end date also add
+`repeat_until`; the same columns apply to every row of that CSV file. Existing
+four-column and five-column files are still readable.
 
 Tasks are marked as `pending` or `completed`. New tasks have `pending` status by default.
 
