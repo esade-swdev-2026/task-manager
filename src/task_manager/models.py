@@ -9,6 +9,7 @@ class Task:
     priority: str = "medium"
     due_date: str = ""
     status: str = "pending"
+    recurrence: str = "none"
 
 
 class EmptyTitleError(ValueError):

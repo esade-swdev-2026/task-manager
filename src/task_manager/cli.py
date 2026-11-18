@@ -109,10 +109,16 @@ def add(
         "",
         help="Due date in YYYY-MM-DD format.",
     ),
+    repeat: str = typer.Option(
+        "none",
+        "--repeat",
+        help="Repeat the task: none, daily, weekly, or monthly.",
+    ),
 ) -> None:
     data_file = get_data_file(ctx)
+
     try:
-        task = create_task(title, priority, due_date)
+        task = create_task(title, priority, due_date, recurrence=repeat)
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None

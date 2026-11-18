@@ -11,10 +11,12 @@ TITLE = 0
 PRIORITY = 1
 DUE_DATE = 2
 STATUS = 3
+RECURRENCE = 4
 
 FIELDS_PER_ROW = 4
 
 CSV_HEADER = ["title", "priority", "due_date", "status"]
+RECURRING_HEADER = CSV_HEADER + ["recurrence"]
 
 
 def read_tasks(path: Path) -> list[Task]:
@@ -26,13 +28,17 @@ def read_tasks(path: Path) -> list[Task]:
         try:
             header = next(reader, None)
 
-            if header != CSV_HEADER:
+            if header not in (CSV_HEADER, RECURRING_HEADER):
                 raise ValueError("Invalid CSV header.")
 
+            expected_columns = (
+                len(RECURRING_HEADER) if header == RECURRING_HEADER else FIELDS_PER_ROW
+            )
+
             for row_number, row in enumerate(reader, start=2):
-                if len(row) != FIELDS_PER_ROW:
+                if len(row) != expected_columns:
                     raise ValueError(
-                        f"Invalid CSV row {row_number}: expected {FIELDS_PER_ROW} columns."
+                        f"Invalid CSV row {row_number}: expected {expected_columns} columns."
                     )
 
                 try:
@@ -41,6 +47,7 @@ def read_tasks(path: Path) -> list[Task]:
                         priority=row[PRIORITY],
                         due_date=row[DUE_DATE],
                         status=row[STATUS],
+                        recurrence=(row[RECURRENCE] if header == RECURRING_HEADER else "none"),
                     )
                 except ValueError as error:
                     raise ValueError(f"Invalid CSV row {row_number}: {error}") from error
@@ -78,10 +85,16 @@ def write_tasks(path: Path, tasks: list[Task]) -> None:
             temporary_path = Path(handle.name)
 
             writer = csv.writer(handle)
-            writer.writerow(CSV_HEADER)
+            include_recurrence = any(task.recurrence != "none" for task in tasks)
+            writer.writerow(RECURRING_HEADER if include_recurrence else CSV_HEADER)
 
             for task in tasks:
-                writer.writerow([task.title, task.priority, task.due_date, task.status])
+                row = [task.title, task.priority, task.due_date, task.status]
+
+                if include_recurrence:
+                    row.append(task.recurrence)
+
+                writer.writerow(row)
 
         os.replace(temporary_path, path)
 

@@ -1640,3 +1640,27 @@ def test_weekly_review_displays_report_without_changing_csv(
     assert "Outside the week" not in result.output
 
     assert path.read_bytes() == original_contents
+
+
+def test_add_and_complete_daily_recurring_task(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = Path("storage_tasks/tasks.csv")
+
+    added = runner.invoke(
+        app,
+        ["add", "Study Python", "--due-date", "2026-11-18", "--repeat", "daily"],
+    )
+
+    assert added.exit_code == 0
+    assert read_tasks(path) == [Task("Study Python", "medium", "2026-11-18", "pending", "daily")]
+
+    completed = runner.invoke(app, ["done"], input="1\n")
+
+    assert completed.exit_code == 0
+    assert read_tasks(path) == [
+        Task("Study Python", "medium", "2026-11-18", "completed", "daily"),
+        Task("Study Python", "medium", "2026-11-19", "pending", "daily"),
+    ]

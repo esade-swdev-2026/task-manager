@@ -312,3 +312,17 @@ def test_write_and_read_completed_task(tmp_path: Path) -> None:
     assert path.read_text(encoding="utf-8") == (
         "title,priority,due_date,status\nStudy Python,high,,completed\n"
     )
+
+
+def test_append_recurring_task_keeps_recurrence(tmp_path: Path) -> None:
+    path = tmp_path / "tasks.csv"
+    regular = Task("Buy groceries", "medium")
+    recurring = Task("Study Python", "high", "2026-11-18", "pending", "weekly")
+
+    append_task(path, regular)
+    append_task(path, recurring)
+
+    assert read_tasks(path) == [regular, recurring]
+    assert path.read_text(encoding="utf-8").splitlines()[0] == (
+        "title,priority,due_date,status,recurrence"
+    )

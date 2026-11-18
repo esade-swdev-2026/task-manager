@@ -1,10 +1,12 @@
+from calendar import monthrange
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 
 from task_manager.models import InvalidNumberTasks, Task
 from task_manager.validation import (
     normalize_due_date,
     normalize_priority,
+    normalize_recurrence,
     normalize_status,
     normalize_title,
 )
@@ -17,12 +19,20 @@ def create_task(
     priority: str = "medium",
     due_date: str = "",
     status: str = "pending",
+    recurrence: str = "none",
 ) -> Task:
+    normalized_due_date = normalize_due_date(due_date)
+    normalized_recurrence = normalize_recurrence(recurrence)
+
+    if normalized_recurrence != "none" and not normalized_due_date:
+        raise ValueError("Recurring tasks require a due date.")
+
     return Task(
         title=normalize_title(title),
         priority=normalize_priority(priority),
-        due_date=normalize_due_date(due_date),
+        due_date=normalized_due_date,
         status=normalize_status(status),
+        recurrence=normalized_recurrence,
     )
 
 
@@ -191,6 +201,32 @@ def complete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]
 
     updated_tasks = list(tasks)
     updated_tasks[task_number - 1] = completed_task
+
+    if original_task.recurrence != "none":
+        due = date.fromisoformat(original_task.due_date)
+
+        if original_task.recurrence == "daily":
+            next_date = due + timedelta(days=1)
+        elif original_task.recurrence == "weekly":
+            next_date = due + timedelta(days=7)
+        elif original_task.recurrence == "monthly":
+            next_month = due.month % 12 + 1
+            next_year = due.year + (due.month == 12)
+            next_day = min(due.day, monthrange(next_year, next_month)[1])
+            next_date = date(next_year, next_month, next_day)
+        else:
+            raise ValueError("Invalid recurrence.")
+
+        next_task = replace(original_task, due_date=next_date.isoformat())
+
+        if not any(
+            task.title == next_task.title
+            and task.priority == next_task.priority
+            and task.due_date == next_task.due_date
+            and task.recurrence == next_task.recurrence
+            for task in updated_tasks
+        ):
+            updated_tasks.append(next_task)
 
     return completed_task, updated_tasks
 
