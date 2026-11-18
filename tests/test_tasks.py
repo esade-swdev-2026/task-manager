@@ -30,6 +30,7 @@ from task_manager.tasks import (
     task_summary,
     tasks_due_soon,
     tasks_for_today,
+    weekly_review,
 )
 
 GROCERIES = Task("Buy groceries", "medium", "2026-11-17")
@@ -645,3 +646,43 @@ def test_task_summary_does_not_modify_original_tasks() -> None:
     assert tasks == original_tasks
     assert tasks[0].status == "pending"
     assert tasks[1].status == "completed"
+
+
+def test_weekly_review_returns_correct_tasks_and_completed_count() -> None:
+    today = date(2026, 11, 17)
+
+    tasks = [
+        Task("Overdue", "high", "2026-11-16"),
+        Task("Tomorrow", "medium", "2026-11-18"),
+        Task("Day 7", "low", "2026-11-24"),
+        Task("Day 8", "high", "2026-11-25"),
+        Task("Due today", "medium", "2026-11-17"),
+        Task("Completed", "high", "2026-11-15", "completed"),
+        Task("No deadline", "low"),
+    ]
+
+    overdue, upcoming, completed = weekly_review(tasks, today)
+
+    assert overdue == [tasks[0]]
+    assert upcoming == [tasks[1], tasks[2]]
+    assert completed == 1
+
+
+def test_weekly_review_handles_empty_tasks() -> None:
+    overdue, upcoming, completed = weekly_review([], date(2026, 11, 17))
+
+    assert overdue == []
+    assert upcoming == []
+    assert completed == 0
+
+
+def test_weekly_review_does_not_modify_original_tasks() -> None:
+    tasks = [
+        Task("Overdue", "high", "2026-11-16"),
+        Task("Completed", "medium", "", "completed"),
+    ]
+    original_tasks = list(tasks)
+
+    weekly_review(tasks, date(2026, 11, 17))
+
+    assert tasks == original_tasks

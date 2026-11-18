@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 
 from task_manager.edit_tasks import edit_task
-from task_manager.formatting import view_tasks
+from task_manager.formatting import format_weekly_review, view_tasks
 from task_manager.models import Task
 from task_manager.storage import append_task, read_tasks, write_tasks
 from task_manager.tasks import (
@@ -26,6 +26,7 @@ from task_manager.tasks import (
     task_summary,
     tasks_due_soon,
     tasks_for_today,
+    weekly_review,
 )
 
 DATA_FILE = Path("storage_tasks") / "tasks.csv"
@@ -471,6 +472,26 @@ def edit(
         raise typer.Exit(1) from None
 
     typer.echo(f"edited {edited_task.title}")
+
+
+@app.command("weekly-review")
+def weekly_review_command(ctx: typer.Context) -> None:
+    """Show a weekly overview of overdue, upcoming and completed tasks."""
+    data_file = get_data_file(ctx)
+    tasks = load_tasks_or_exit(data_file)
+    reference_date = current_date()
+
+    overdue_tasks, upcoming_tasks, completed_count = weekly_review(tasks, reference_date)
+
+    report = format_weekly_review(
+        overdue_tasks,
+        upcoming_tasks,
+        completed_count,
+        reference_date,
+    )
+
+    for line in report:
+        typer.echo(line)
 
 
 if __name__ == "__main__":
