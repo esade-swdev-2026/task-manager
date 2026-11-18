@@ -161,6 +161,35 @@ This command includes tasks due from tomorrow through seven days from today, inc
 
 Tasks due today, overdue tasks, and completed tasks are excluded. Results are sorted by due date.
 
+
+### Calendar view
+
+Display tasks in a monthly calendar:
+
+```bash
+uv run task-manager calendar
+```
+
+By default, the calendar shows the current month and year. To view a specific month:
+
+```bash
+uv run task-manager calendar --month 11 --year 2026
+```
+
+The calendar displays a seven-column grid from Monday to Sunday. Days containing tasks show the number of tasks in brackets, such as `23 [2]` for two tasks due on November 23.
+
+Below the calendar, an aligned table lists the tasks for the selected month, including their due date, title, status, and priority.
+
+Both pending and completed tasks are included. Tasks without due dates or with deadlines outside the selected month are excluded.
+
+The calendar also supports custom CSV files:
+
+```bash
+uv run task-manager --data-file university.csv calendar --month 11 --year 2026
+```
+
+Calendar view is read-only and does not modify saved tasks.
+
 ### Task summary
 
 Display an overview of all saved tasks:
@@ -270,7 +299,7 @@ uv run task-manager --data-file personal.csv add "Buy groceries"
 uv run task-manager --data-file personal.csv list
 ```
 
-The option works with all commands, including `add`, `list`, `edit`, `delete`, `done`, `reopen`, `search`, `priority`, `today`, `due-soon`, and `summary`.
+The option works with all commands, including `add`, `list`, `edit`, `delete`, `done`, `reopen`, `search`, `priority`, `today`, `due-soon`,`calendar` and `summary`.
 
 Relative and absolute paths are supported, including paths containing spaces. Missing parent directories are created when saving tasks.
 
@@ -315,6 +344,7 @@ uv run task-manager today --help
 uv run task-manager due-soon --help
 uv run task-manager summary --help
 uv run task-manager priority --help
+uv run task-manager calendar --help
 ```
 
 

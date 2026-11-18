@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 
 from task_manager.edit_tasks import edit_task
-from task_manager.formatting import format_weekly_review, view_tasks
+from task_manager.formatting import format_calendar, format_weekly_review, view_tasks
 from task_manager.models import Task
 from task_manager.storage import append_task, read_tasks, write_tasks
 from task_manager.tasks import (
@@ -479,6 +479,34 @@ def weekly_review_command(ctx: typer.Context) -> None:
     )
 
     for line in report:
+        typer.echo(line)
+
+
+@app.command()
+def calendar(
+    ctx: typer.Context,
+    month: int | None = typer.Option(None, help="Month to display (1-12)."),
+    year: int | None = typer.Option(None, help="Year to display."),
+) -> None:
+    """Display tasks in a monthly calendar."""
+    today = current_date()
+
+    selected_month = month if month is not None else today.month
+    selected_year = year if year is not None else today.year
+
+    if not 1 <= selected_month <= 12:
+        typer.echo("Month must be between 1 and 12.", err=True)
+        raise typer.Exit(1)
+
+    if not 1 <= selected_year <= 9999:
+        typer.echo("Year must be between 1 and 9999.", err=True)
+        raise typer.Exit(1)
+
+    tasks = load_tasks_or_exit(get_data_file(ctx))
+
+    lines = format_calendar(tasks, selected_year, selected_month)
+
+    for line in lines:
         typer.echo(line)
 
 

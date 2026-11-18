@@ -1664,3 +1664,81 @@ def test_add_and_complete_daily_recurring_task(
         Task("Study Python", "medium", "2026-11-18", "completed", "daily"),
         Task("Study Python", "medium", "2026-11-19", "pending", "daily"),
     ]
+
+
+def test_calendar_displays_selected_month(tmp_path: Path) -> None:
+    data_file = tmp_path / "tasks.csv"
+
+    result = runner.invoke(
+        app,
+        [
+            "--data-file",
+            str(data_file),
+            "calendar",
+            "--month",
+            "11",
+            "--year",
+            "2026",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "NOVEMBER 2026" in result.output
+    assert "TASKS THIS MONTH (0)" in result.output
+
+
+def test_calendar_uses_custom_data_file(tmp_path: Path) -> None:
+    data_file = tmp_path / "custom_tasks.csv"
+
+    write_tasks(
+        data_file,
+        [Task("Study Python", "high", "2026-11-23")],
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--data-file",
+            str(data_file),
+            "calendar",
+            "--month",
+            "11",
+            "--year",
+            "2026",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Study Python" in result.output
+    assert "23 [1]" in result.output
+    assert "TASKS THIS MONTH (1)" in result.output
+
+
+@pytest.mark.parametrize(
+    ("options", "error_message"),
+    [
+        (["--month", "13"], "Month must be between 1 and 12."),
+        (["--year", "0"], "Year must be between 1 and 9999."),
+    ],
+)
+def test_calendar_rejects_invalid_dates(
+    options: list[str],
+    error_message: str,
+) -> None:
+    result = runner.invoke(app, ["calendar", *options])
+
+    assert result.exit_code == 1
+    assert error_message in result.output
+
+
+def test_calendar_defaults_to_current_month(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 18))
+
+    result = runner.invoke(app, ["calendar"])
+
+    assert result.exit_code == 0
+    assert "NOVEMBER 2026" in result.output

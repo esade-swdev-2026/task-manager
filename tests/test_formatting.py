@@ -1,6 +1,6 @@
 from datetime import date
 
-from task_manager.formatting import format_weekly_review, view_tasks
+from task_manager.formatting import format_calendar, format_weekly_review, view_tasks
 from task_manager.models import Task
 
 
@@ -152,3 +152,69 @@ def test_format_weekly_review_without_any_tasks() -> None:
     assert "CURRENTLY COMPLETED: 0 TASKS" in result
     assert "No overdue tasks. Great job!" in result
     assert "No upcoming tasks." in result
+
+
+def test_calendar_displays_tasks_and_aligned_grid() -> None:
+    tasks = [
+        Task("Study Python", due_date="2026-11-23"),
+        Task("Marketing assignment", due_date="2026-11-23"),
+    ]
+
+    lines = format_calendar(tasks, 2026, 11)
+    output = "\n".join(lines)
+
+    assert "NOVEMBER 2026" in output
+
+    assert "23 [2]" in output
+
+    assert "Study Python" in output
+    assert "Marketing assignment" in output
+
+    calendar_end = next(index for index, line in enumerate(lines) if line.startswith("└"))
+
+    calendar_lines = [
+        line for line in lines[: calendar_end + 1] if line.startswith(("┌", "├", "└", "│"))
+    ]
+
+    assert len({len(line) for line in calendar_lines}) == 1
+
+    table_lines = [
+        line for line in lines[calendar_end + 1 :] if line.startswith(("┌", "├", "└", "│"))
+    ]
+
+    assert len({len(line) for line in table_lines}) == 1
+
+
+def test_calendar_without_tasks() -> None:
+    lines = format_calendar([], 2026, 11)
+    output = "\n".join(lines)
+
+    assert "NOVEMBER 2026" in output
+    assert "TASKS THIS MONTH (0)" in output
+    assert "01" in output
+    assert "30" in output
+
+
+def test_calendar_only_shows_selected_month() -> None:
+    tasks = [
+        Task("November task", due_date="2026-11-23"),
+        Task("December task", due_date="2026-12-05"),
+        Task("No deadline"),
+    ]
+
+    output = "\n".join(format_calendar(tasks, 2026, 11))
+
+    assert "November task" in output
+    assert "December task" not in output
+    assert "No deadline" not in output
+    assert "TASKS THIS MONTH (1)" in output
+
+
+def test_calendar_handles_leap_year() -> None:
+    tasks = [Task("Leap day task", due_date="2028-02-29")]
+
+    output = "\n".join(format_calendar(tasks, 2028, 2))
+
+    assert "FEBRUARY 2028" in output
+    assert "29 [1]" in output
+    assert "Leap day task" in output
