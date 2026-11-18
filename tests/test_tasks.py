@@ -686,3 +686,59 @@ def test_weekly_review_does_not_modify_original_tasks() -> None:
     weekly_review(tasks, date(2026, 11, 17))
 
     assert tasks == original_tasks
+
+
+def test_complete_daily_task_creates_next_occurrence() -> None:
+    tasks = [Task("Study Python", "high", "2026-11-18", "pending", "daily")]
+
+    completed, updated = complete_task(tasks, 1)
+
+    assert completed.status == "completed"
+    assert [task.due_date for task in updated] == ["2026-11-18", "2026-11-19"]
+    assert updated[1].status == "pending"
+    assert tasks[0].status == "pending"
+
+
+@pytest.mark.parametrize(
+    ("recurrence", "due_date", "expected_date"),
+    [
+        ("weekly", "2026-11-18", "2026-11-25"),
+        ("monthly", "2026-01-31", "2026-02-28"),
+        ("monthly", "2028-01-31", "2028-02-29"),
+    ],
+)
+def test_complete_weekly_and_monthly_tasks(
+    recurrence: str, due_date: str, expected_date: str
+) -> None:
+    tasks = [Task("Study Python", "high", due_date, "pending", recurrence)]
+
+    _, updated = complete_task(tasks, 1)
+
+    assert [task.due_date for task in updated] == [due_date, expected_date]
+
+
+def test_create_recurring_task() -> None:
+    task = create_task("Study Python", "high", "2026-11-18", recurrence="weekly")
+
+    assert task.recurrence == "weekly"
+
+
+def test_create_recurring_task_requires_due_date() -> None:
+    with pytest.raises(ValueError, match="Recurring tasks require a due date."):
+        create_task("Study Python", recurrence="daily")
+
+
+def test_create_task_rejects_invalid_recurrence() -> None:
+    with pytest.raises(ValueError, match="Invalid recurrence."):
+        create_task("Study Python", "high", "2026-11-18", recurrence="yearly")
+
+
+def test_recompleting_recurring_task_does_not_duplicate_next() -> None:
+    tasks = [Task("Study Python", "high", "2026-11-18", "pending", "daily")]
+
+    _, after_first_completion = complete_task(tasks, 1)
+    _, reopened = reopen_task(after_first_completion, 1)
+    _, after_second_completion = complete_task(reopened, 1)
+
+    assert len(after_second_completion) == 2
+    assert after_second_completion[1].due_date == "2026-11-19"

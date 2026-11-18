@@ -55,3 +55,12 @@ def normalize_status(status: str) -> str:
         raise InvalidStatus(f"Status must be one of: {allowed}.")
 
     return normalized_status
+
+
+def normalize_recurrence(recurrence: str) -> str:
+    normalized = recurrence.strip().lower()
+
+    if normalized not in ("none", "daily", "weekly", "monthly"):
+        raise ValueError("Invalid recurrence.")
+
+    return normalized
