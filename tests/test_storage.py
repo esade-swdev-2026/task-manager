@@ -9,7 +9,7 @@ from task_manager.storage import append_task, delete_task, read_tasks, write_tas
 
 def test_append_task_creates_csv_and_saves_task(tmp_path: Path) -> None:
     path = tmp_path / "storage_tasks" / "tasks.csv"
-    task = Task("Study Finance", "high", "2026-10-20")
+    task = Task("Study Finance", "high", "2026-10-20", category="university")
 
     append_task(path, task)
 
@@ -310,7 +310,7 @@ def test_write_and_read_completed_task(tmp_path: Path) -> None:
 
     assert read_tasks(path) == tasks
     assert path.read_text(encoding="utf-8") == (
-        "title,priority,due_date,status\nStudy Python,high,,completed\n"
+        "title,priority,due_date,status,category\nStudy Python,high,,completed,other\n"
     )
 
 
@@ -324,7 +324,7 @@ def test_append_recurring_task_keeps_recurrence(tmp_path: Path) -> None:
 
     assert read_tasks(path) == [regular, recurring]
     assert path.read_text(encoding="utf-8").splitlines()[0] == (
-        "title,priority,due_date,status,recurrence"
+        "title,priority,due_date,status,recurrence,category"
     )
 
 
@@ -339,15 +339,15 @@ def test_bounded_recurrence_round_trips_with_regular_tasks(tmp_path: Path) -> No
 
     assert read_tasks(path) == tasks
     assert path.read_text(encoding="utf-8").splitlines()[0] == (
-        "title,priority,due_date,status,recurrence,repeat_until"
+        "title,priority,due_date,status,recurrence,repeat_until,category"
     )
 
 
 def test_invalid_end_date_in_csv_does_not_change_file(tmp_path: Path) -> None:
     path = tmp_path / "tasks.csv"
     path.write_text(
-        "title,priority,due_date,status,recurrence,repeat_until\n"
-        "Study,high,2026-11-18,pending,daily,2026-11-17\n",
+        "title,priority,due_date,status,recurrence,repeat_until,category\n"
+        "Study,high,2026-11-18,pending,daily,2026-11-17,other\n",
         encoding="utf-8",
     )
     original = path.read_bytes()
@@ -356,3 +356,16 @@ def test_invalid_end_date_in_csv_does_not_change_file(tmp_path: Path) -> None:
         read_tasks(path)
 
     assert path.read_bytes() == original
+
+
+def test_read_tasks_accepts_category(tmp_path: Path) -> None:
+    csv_file = tmp_path / "tasks.csv"
+    csv_file.write_text(
+        "title,priority,due_date,status,category\n"
+        "Study Finance,high,2026-11-20,pending,university\n",
+        encoding="utf-8",
+    )
+
+    tasks = read_tasks(csv_file)
+
+    assert tasks == [Task("Study Finance", "high", "2026-11-20", "pending", category="university")]

@@ -1782,3 +1782,47 @@ def test_calendar_defaults_to_current_month(
 
     assert result.exit_code == 0
     assert "NOVEMBER 2026" in result.output
+
+
+def test_add_task_with_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["add", "Study Finance", "--category", "university"],
+    )
+
+    saved_tasks = read_tasks(Path("storage_tasks/tasks.csv"))
+
+    assert result.exit_code == 0
+    assert saved_tasks == [Task("Study Finance", "medium", "", category="university")]
+
+
+def test_edit_changes_category_and_preserves_other_fields(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert (
+        runner.invoke(
+            app,
+            ["add", "Study Finance", "--priority", "high", "--due-date", "2026-11-20"],
+        ).exit_code
+        == 0
+    )
+
+    result = runner.invoke(
+        app,
+        ["edit", "--category", "university"],
+        input="1\n",
+    )
+
+    assert result.exit_code == 0
+
+    assert read_tasks(Path("storage_tasks/tasks.csv")) == [
+        Task("Study Finance", "high", "2026-11-20", category="university")
+    ]
