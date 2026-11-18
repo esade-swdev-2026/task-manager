@@ -57,6 +57,15 @@ def load_tasks_or_exit(path: Path) -> list[Task]:
         raise typer.Exit(1) from None
 
 
+def save_tasks_or_exit(path: Path, tasks: list[Task]) -> None:
+    """Save tasks to CSV and handle writing errors."""
+    try:
+        write_tasks(path, tasks)
+    except OSError:
+        typer.echo(f"could not write {path}", err=True)
+        raise typer.Exit(1) from None
+
+
 def prompt_task_number(action: str) -> int:
     try:
         raw_number = typer.prompt(
@@ -73,6 +82,26 @@ def prompt_task_number(action: str) -> int:
         return int(raw_number.strip())
     except ValueError:
         typer.echo("Invalid task number.", err=True)
+        raise typer.Exit(1) from None
+
+
+def select_task_number(
+    tasks: list[Task],
+    selectable_tasks: list[Task],
+    action: str,
+) -> int:
+    """Display selectable tasks and return the original task number."""
+    displayed_tasks = sort_tasks_by_priority(selectable_tasks)
+
+    for line in view_tasks(displayed_tasks, current_date()):
+        typer.echo(line)
+
+    task_number = prompt_task_number(action)
+
+    try:
+        return get_original_task_number(tasks, displayed_tasks, task_number)
+    except ValueError as error:
+        typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
 
@@ -272,26 +301,15 @@ def delete(ctx: typer.Context) -> None:
         typer.echo("No tasks found.", err=True)
         raise typer.Exit(1)
 
-    displayed_tasks = sort_tasks_by_priority(tasks)
-    for line in view_tasks(displayed_tasks, current_date()):
-        typer.echo(line)
-
-    task_number = prompt_task_number("delete")
+    original_task_number = select_task_number(tasks, tasks, "delete")
 
     try:
-        original_task_number = get_original_task_number(tasks, displayed_tasks, task_number)
         deleted_task, remaining_tasks = delete_task(tasks, original_task_number)
-
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
-    # Save remaining tasks without changing their original order
-    try:
-        write_tasks(data_file, remaining_tasks)
-    except OSError:
-        typer.echo(f"could not write {data_file}", err=True)
-        raise typer.Exit(1) from None
+    save_tasks_or_exit(data_file, remaining_tasks)
 
     typer.echo(f"deleted {deleted_task.title}")
 
@@ -308,26 +326,15 @@ def done(ctx: typer.Context) -> None:
         typer.echo("No pending tasks found.", err=True)
         raise typer.Exit(1)
 
-    displayed_tasks = sort_tasks_by_priority(pending_tasks)
-
-    for line in view_tasks(displayed_tasks, current_date()):
-        typer.echo(line)
-
-    task_number = prompt_task_number("complete")
+    original_task_number = select_task_number(tasks, pending_tasks, "complete")
 
     try:
-        original_task_number = get_original_task_number(tasks, displayed_tasks, task_number)
         completed_task, updated_tasks = complete_task(tasks, original_task_number)
-
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
-    try:
-        write_tasks(data_file, updated_tasks)
-    except OSError:
-        typer.echo(f"could not write {data_file}", err=True)
-        raise typer.Exit(1) from None
+    save_tasks_or_exit(data_file, updated_tasks)
 
     typer.echo(f"completed {completed_task.title}")
 
@@ -344,26 +351,16 @@ def reopen(ctx: typer.Context) -> None:
         typer.echo("No completed tasks found.", err=True)
         raise typer.Exit(1)
 
-    displayed_tasks = sort_tasks_by_priority(completed_tasks)
-
-    for line in view_tasks(displayed_tasks, current_date()):
-        typer.echo(line)
-
-    task_number = prompt_task_number("reopen")
+    original_task_number = select_task_number(tasks, completed_tasks, "reopen")
 
     try:
-        original_task_number = get_original_task_number(tasks, displayed_tasks, task_number)
         reopened_task, updated_tasks = reopen_task(tasks, original_task_number)
 
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
 
-    try:
-        write_tasks(data_file, updated_tasks)
-    except OSError:
-        typer.echo(f"could not write {data_file}", err=True)
-        raise typer.Exit(1) from None
+    save_tasks_or_exit(data_file, updated_tasks)
 
     typer.echo(f"reopened {reopened_task.title}")
 
@@ -438,18 +435,7 @@ def edit(
         typer.echo("No tasks found.", err=True)
         raise typer.Exit(1)
 
-    displayed_tasks = sort_tasks_by_priority(tasks)
-
-    for line in view_tasks(displayed_tasks, current_date()):
-        typer.echo(line)
-
-    task_number = prompt_task_number("edit")
-
-    try:
-        original_task_number = get_original_task_number(tasks, displayed_tasks, task_number)
-    except ValueError as error:
-        typer.echo(str(error), err=True)
-        raise typer.Exit(1) from None
+    original_task_number = select_task_number(tasks, tasks, "edit")
 
     try:
         edited_task, updated_tasks = edit_task(
@@ -471,11 +457,7 @@ def edit(
         typer.echo("Task already exists.", err=True)
         raise typer.Exit(1)
 
-    try:
-        write_tasks(data_file, updated_tasks)
-    except OSError:
-        typer.echo(f"could not write {data_file}", err=True)
-        raise typer.Exit(1) from None
+    save_tasks_or_exit(data_file, updated_tasks)
 
     typer.echo(f"edited {edited_task.title}")
 
