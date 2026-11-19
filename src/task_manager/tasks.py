@@ -294,10 +294,22 @@ def filter_tasks_by_priority(tasks: list[Task], priority: str) -> list[Task]:
     return [task for task in tasks if task.priority == priority]
 
 
-def weekly_review(tasks: list[Task], today: date) -> tuple[list[Task], list[Task], int]:
-    """Return overdue tasks, upcoming tasks and the current completed count."""
+def weekly_review(
+    tasks: list[Task],
+    today: date,
+) -> tuple[list[Task], list[Task], list[Task], int]:
+    """Return overdue, due-today, upcoming tasks and completed count."""
+
     overdue_tasks = filter_overdue_tasks(tasks, today)
+
+    due_today_tasks = [
+        task
+        for task in tasks
+        if task.status == "pending" and task.due_date and date.fromisoformat(task.due_date) == today
+    ]
+
     upcoming_tasks = tasks_due_soon(tasks, today)
+
     completed_count = sum(task.status == "completed" for task in tasks)
 
-    return overdue_tasks, upcoming_tasks, completed_count
+    return overdue_tasks, due_today_tasks, upcoming_tasks, completed_count

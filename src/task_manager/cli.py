@@ -484,15 +484,18 @@ def edit(
 
 @app.command("weekly-review")
 def weekly_review_command(ctx: typer.Context) -> None:
-    """Show a weekly overview of overdue, upcoming and completed tasks."""
+    """Show a weekly overview of overdue, due-today, upcoming and completed tasks."""
     data_file = get_data_file(ctx)
     tasks = load_tasks_or_exit(data_file)
     reference_date = current_date()
 
-    overdue_tasks, upcoming_tasks, completed_count = weekly_review(tasks, reference_date)
+    overdue_tasks, due_today_tasks, upcoming_tasks, completed_count = weekly_review(
+        tasks, reference_date
+    )
 
     report = format_weekly_review(
         overdue_tasks,
+        due_today_tasks,
         upcoming_tasks,
         completed_count,
         reference_date,

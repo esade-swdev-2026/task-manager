@@ -35,6 +35,7 @@ def view_tasks(
 
 def format_weekly_review(
     overdue_tasks: list[Task],
+    due_today_tasks: list[Task],
     upcoming_tasks: list[Task],
     completed_count: int,
     today: date,
@@ -55,6 +56,21 @@ def format_weekly_review(
             lines.append(f"   Priority: {task.priority.upper()} | Due: {task.due_date}")
     else:
         lines.append("No overdue tasks. Great job!")
+
+    lines.extend(
+        [
+            "",
+            f"DUE TODAY ({len(due_today_tasks)})",
+            "-" * 40,
+        ]
+    )
+
+    if due_today_tasks:
+        for index, task in enumerate(due_today_tasks, start=1):
+            lines.append(f"{index}. [DUE TODAY] {task.title}")
+            lines.append(f"   Priority: {task.priority.upper()} | Due: {task.due_date}")
+    else:
+        lines.append("No tasks due today.")
 
     lines.extend(
         [

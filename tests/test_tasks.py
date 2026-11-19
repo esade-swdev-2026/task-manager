@@ -661,17 +661,19 @@ def test_weekly_review_returns_correct_tasks_and_completed_count() -> None:
         Task("No deadline", "low"),
     ]
 
-    overdue, upcoming, completed = weekly_review(tasks, today)
+    overdue, due_today, upcoming, completed = weekly_review(tasks, today)
 
-    assert overdue == [tasks[0]]
-    assert upcoming == [tasks[1], tasks[2]]
+    assert [task.title for task in overdue] == ["Overdue"]
+    assert [task.title for task in due_today] == ["Due today"]
+    assert [task.title for task in upcoming] == ["Tomorrow", "Day 7"]
     assert completed == 1
 
 
 def test_weekly_review_handles_empty_tasks() -> None:
-    overdue, upcoming, completed = weekly_review([], date(2026, 11, 17))
+    overdue, due_today, upcoming, completed = weekly_review([], date(2026, 11, 17))
 
     assert overdue == []
+    assert due_today == []
     assert upcoming == []
     assert completed == 0
 
@@ -812,3 +814,26 @@ def test_add_task_default_category() -> None:
 
     assert task.category == "other"
     assert task in tasks
+
+
+def test_weekly_review_includes_tasks_due_today() -> None:
+    today = date(2026, 11, 19)
+
+    tasks = [
+        Task("Overdue task", "high", due_date="2026-11-18"),
+        Task("Today's task", "medium", due_date="2026-11-19"),
+        Task("Upcoming task", "low", due_date="2026-11-20"),
+        Task(
+            "Completed today",
+            "high",
+            due_date="2026-11-19",
+            status="completed",
+        ),
+    ]
+
+    overdue, due_today, upcoming, completed = weekly_review(tasks, today)
+
+    assert [task.title for task in overdue] == ["Overdue task"]
+    assert [task.title for task in due_today] == ["Today's task"]
+    assert [task.title for task in upcoming] == ["Upcoming task"]
+    assert completed == 1
