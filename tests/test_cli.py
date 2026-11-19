@@ -1207,16 +1207,25 @@ def test_today_handles_no_matching_tasks(
     assert result.output.strip() == "No tasks due today or overdue."
 
 
-def test_today_handles_missing_csv(
+@pytest.mark.parametrize(
+    ("command", "expected_message"),
+    [
+        ("today", "No tasks due today or overdue."),
+        ("due-soon", "No tasks due in the next seven days."),
+    ],
+)
+def test_date_view_handles_missing_csv(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    command: str,
+    expected_message: str,
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(app, ["today"])
+    result = runner.invoke(app, [command])
 
     assert result.exit_code == 0
-    assert result.output.strip() == "No tasks due today or overdue."
+    assert result.output.strip() == expected_message
 
 
 def test_due_soon_shows_upcoming_tasks_without_changing_csv(
@@ -1269,18 +1278,6 @@ def test_due_soon_handles_no_matching_tasks(
             Task("Completed", "low", "2026-11-18", "completed"),
         ],
     )
-
-    result = runner.invoke(app, ["due-soon"])
-
-    assert result.exit_code == 0
-    assert result.output.strip() == "No tasks due in the next seven days."
-
-
-def test_due_soon_handles_missing_csv(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(app, ["due-soon"])
 
