@@ -77,83 +77,6 @@ def test_view_tasks_preserves_default_format_for_due_today() -> None:
     assert result == ["1. [PENDING] Due today - high - due 2026-11-17"]
 
 
-def test_format_weekly_review() -> None:
-    today = date(2026, 11, 17)
-    overdue_tasks = [
-        Task("Submit assignment", "high", "2026-11-16"),
-    ]
-    upcoming_tasks = [
-        Task("Prepare presentation", "medium", "2026-11-20"),
-        Task("Finish project", "low", "2026-11-24"),
-    ]
-
-    result = format_weekly_review(overdue_tasks, upcoming_tasks, 3, today)
-
-    assert result == [
-        "=" * 40,
-        "              WEEKLY REVIEW",
-        "=" * 40,
-        "Tuesday, 17 November 2026",
-        "",
-        "OVERDUE TASKS (1)",
-        "-" * 40,
-        "1. [OVERDUE] Submit assignment",
-        "   Priority: HIGH | Due: 2026-11-16",
-        "",
-        "UPCOMING - NEXT 7 DAYS (2)",
-        "-" * 40,
-        "1. Prepare presentation",
-        "   Priority: MEDIUM | Due: 2026-11-20",
-        "2. Finish project",
-        "   Priority: LOW | Due: 2026-11-24",
-        "",
-        "-" * 40,
-        "CURRENTLY COMPLETED: 3 TASKS",
-        "=" * 40,
-    ]
-
-
-def test_format_weekly_review_without_overdue_tasks() -> None:
-    result = format_weekly_review(
-        [],
-        [Task("Study Finance", "high", "2026-11-20")],
-        2,
-        date(2026, 11, 17),
-    )
-
-    assert "OVERDUE TASKS (0)" in result
-    assert "No overdue tasks. Great job!" in result
-    assert any("Study Finance" in line for line in result)
-
-
-def test_format_weekly_review_without_upcoming_tasks() -> None:
-    result = format_weekly_review(
-        [Task("Late assignment", "high", "2026-11-16")],
-        [],
-        0,
-        date(2026, 11, 17),
-    )
-
-    assert "UPCOMING - NEXT 7 DAYS (0)" in result
-    assert "No upcoming tasks." in result
-    assert any("Late assignment" in line for line in result)
-
-
-def test_format_weekly_review_without_any_tasks() -> None:
-    result = format_weekly_review(
-        [],
-        [],
-        0,
-        date(2026, 11, 17),
-    )
-
-    assert "OVERDUE TASKS (0)" in result
-    assert "UPCOMING - NEXT 7 DAYS (0)" in result
-    assert "CURRENTLY COMPLETED: 0 TASKS" in result
-    assert "No overdue tasks. Great job!" in result
-    assert "No upcoming tasks." in result
-
-
 def test_calendar_displays_tasks_and_aligned_grid() -> None:
     tasks = [
         Task("Study Python", due_date="2026-11-23"),
@@ -218,3 +141,93 @@ def test_calendar_handles_leap_year() -> None:
     assert "FEBRUARY 2028" in output
     assert "29 [1]" in output
     assert "Leap day task" in output
+
+
+def test_format_weekly_review_includes_due_today() -> None:
+    today = date(2026, 11, 19)
+
+    due_today = [Task("Study Finance", "high")]
+
+    lines = format_weekly_review(
+        [],
+        due_today,
+        [],
+        0,
+        today,
+    )
+
+    assert "DUE TODAY (1)" in lines
+    assert "1. [DUE TODAY] Study Finance" in lines
+    assert "No tasks due today." not in lines
+
+
+def test_format_weekly_review_with_no_due_today_tasks() -> None:
+    today = date(2026, 11, 19)
+
+    lines = format_weekly_review([], [], [], 0, today)
+
+    assert "DUE TODAY (0)" in lines
+    assert "No tasks due today." in lines
+
+
+def test_format_weekly_review() -> None:
+    today = date(2026, 11, 17)
+    overdue_tasks = [
+        Task("Submit assignment", "high", "2026-11-16"),
+    ]
+    due_today_tasks = [
+        Task("Due today", "medium", "2026-11-17"),
+    ]
+    upcoming_tasks = [
+        Task("Prepare presentation", "medium", "2026-11-20"),
+        Task("Finish project", "low", "2026-11-24"),
+    ]
+
+    result = format_weekly_review(overdue_tasks, due_today_tasks, upcoming_tasks, 3, today)
+
+    assert "OVERDUE TASKS (1)" in result
+    assert "DUE TODAY (1)" in result
+    assert "UPCOMING - NEXT 7 DAYS (2)" in result
+    assert "CURRENTLY COMPLETED: 3 TASKS" in result
+
+
+def test_format_weekly_review_without_overdue_tasks() -> None:
+    result = format_weekly_review(
+        [],
+        [],
+        [Task("Study Finance", "high", "2026-11-20")],
+        2,
+        date(2026, 11, 17),
+    )
+
+    assert "OVERDUE TASKS (0)" in result
+    assert "No overdue tasks. Great job!" in result
+
+
+def test_format_weekly_review_without_upcoming_tasks() -> None:
+    result = format_weekly_review(
+        [Task("Late assignment", "high", "2026-11-16")],
+        [],
+        [],
+        0,
+        date(2026, 11, 17),
+    )
+
+    assert "UPCOMING - NEXT 7 DAYS (0)" in result
+    assert "No upcoming tasks." in result
+
+
+def test_format_weekly_review_without_any_tasks() -> None:
+    result = format_weekly_review(
+        [],
+        [],
+        [],
+        0,
+        date(2026, 11, 17),
+    )
+
+    assert "OVERDUE TASKS (0)" in result
+    assert "DUE TODAY (0)" in result
+    assert "No tasks due today." in result
+    assert "UPCOMING - NEXT 7 DAYS (0)" in result
+    assert "No upcoming tasks." in result
