@@ -716,7 +716,7 @@ def test_done_without_pending_tasks(
 
 
 @pytest.mark.parametrize(
-    ("command", "status"),
+    ("command", "initial_status"),
     [("done", "pending"), ("reopen", "completed")],
 )
 @pytest.mark.parametrize("selection", ["0\n", "-1\n", "99\n", "abc\n"])
@@ -724,13 +724,13 @@ def test_status_command_invalid_selection_preserves_csv(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     command: str,
-    status: str,
+    initial_status: str,
     selection: str,
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
     path = Path("storage_tasks/tasks.csv")
-    write_tasks(path, [Task("Study Python", "high", "", status)])
+    write_tasks(path, [Task("Study Python", "high", "", initial_status)])
     original_contents = path.read_bytes()
 
     result = runner.invoke(app, [command], input=selection)
