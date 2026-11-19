@@ -2,7 +2,7 @@
 
 Task Manager is a terminal application for creating, organising, and tracking personal tasks.
 
-Tasks can have a priority, an optional due date, and a completion status. They are saved between program executions and can be listed, filtered, searched, edited, completed, reopened, or deleted.
+Tasks can have a priority, an optional due date, a completion status, and a category. They are saved between program executions and can be listed, filtered, searched, edited, completed, reopened, or deleted.
 
 The application also provides dedicated views for today's tasks and upcoming deadlines, as well as a summary of task statistics.
 
@@ -44,9 +44,9 @@ The following commands create three tasks with different priorities and due
 dates.
 
 ```bash
-uv run task-manager add "Prepare finance presentation" --priority high --due-date 2027-10-20
-uv run task-manager add "Book dentist appointment" --priority low --due-date 2027-10-17
-uv run task-manager add "Buy printer paper"
+uv run task-manager add "Prepare finance presentation" --priority high --due-date 2027-10-20 --category university
+uv run task-manager add "Book dentist appointment" --priority low --due-date 2027-10-17 --category personal
+uv run task-manager add "Buy printer paper" --category personal
 
 ```
 
@@ -297,6 +297,12 @@ To remove a due date:
 uv run task-manager edit --due-date ""
 ```
 
+To change a task's category:
+
+```bash
+uv run task-manager edit --category university
+```
+
 Invalid values, invalid task numbers and changes that would create an
 exact duplicate are rejected without modifying saved data.
 At least one field must be provided.
@@ -325,6 +331,30 @@ Relative and absolute paths are supported, including paths containing spaces. Mi
 
 If `--data-file` is not provided, the default CSV file is used. Each file remains independent, so tasks from different files are never mixed.
 
+**### Weekly review**
+
+Display an overview of overdue, due-today, upcoming, and completed tasks:
+
+```bash
+uv run task-manager weekly-review
+```
+
+The weekly review is divided into four sections:
+
+- **Overdue tasks:** Pending tasks with a due date earlier than today.
+- **Due today:** Pending tasks with a due date equal to today.
+- **Upcoming – next 7 days:** Pending tasks due from tomorrow through seven days from today, inclusive.
+- **Currently completed:** Total number of completed tasks.
+
+Each section displays the number of tasks it contains. Tasks are listed with their title, priority, and due date.
+
+If a section has no tasks, an appropriate message is displayed.
+
+Completed tasks are excluded from the overdue, due-today, and upcoming sections. They are only included in the completed task count.
+
+The weekly review is read-only and does not modify the saved CSV file.
+
+
 ### Task selection
 
 When editing, deleting, completing, or reopening a task, enter the number shown in the displayed list.
@@ -343,7 +373,7 @@ Invalid selections do not modify saved tasks. Updating or deleting tasks preserv
 | `reopen` | Changes a completed task back to pending. | Task number requested interactively. |
 | `delete` | Deletes a selected task. | Task number requested interactively. |
 | `search` | Searches saved tasks by title, ignoring case. | Required keyword. |
-| `edit` | Updates a selected task. | At least one of `--title`, `--priority`, or `--due-date`. |
+| `edit` | Updates a selected task. | At least one of `--title`, `--priority`, `--due-date`, or `--category`. |
 | `today` | Displays pending tasks due today or overdue. | No arguments. |
 | `due-soon` | Displays pending tasks due in the next seven days, excluding today. | No arguments. |
 | `weekly-review` | Displays overdue tasks, upcoming tasks, and the completed count. | No arguments. |
@@ -367,6 +397,7 @@ uv run task-manager due-soon --help
 uv run task-manager summary --help
 uv run task-manager priority --help
 uv run task-manager calendar --help
+uv run task-manager weekly-review --help
 ```
 
 
