@@ -49,6 +49,55 @@ def test_edit_task_changes_due_date() -> None:
     assert tasks == [original_task]
 
 
+def test_edit_task_changes_category() -> None:
+    original_task = Task("Study Software", "high", "2026-11-05")
+    tasks = [original_task]
+
+    edited_task, updated_tasks = edit_task(
+        tasks,
+        1,
+        category="university",
+    )
+
+    expected_task = Task(
+        "Study Software",
+        "high",
+        "2026-11-05",
+        category="university",
+    )
+
+    assert edited_task == expected_task
+    assert updated_tasks == [expected_task]
+    assert tasks == [original_task]
+
+
+def test_edit_task_preserves_category() -> None:
+    original_task = Task(
+        "Study Software",
+        "high",
+        "2026-11-05",
+        category="university",
+    )
+    tasks = [original_task]
+
+    edited_task, updated_tasks = edit_task(
+        tasks,
+        1,
+        title="Study Git",
+    )
+
+    expected_task = Task(
+        "Study Git",
+        "high",
+        "2026-11-05",
+        category="university",
+    )
+
+    assert edited_task == expected_task
+    assert updated_tasks == [expected_task]
+    assert tasks == [original_task]
+
+
 def test_edit_task_clears_due_date() -> None:
     original_task = Task("Study Software", "high", "2026-11-05")
     tasks = [original_task]
@@ -85,9 +134,15 @@ def test_edit_task_changes_all_fields_of_selected_task() -> None:
         title="Study Git",
         priority="high",
         due_date="2026-11-10",
+        category="university",
     )
 
-    expected_task = Task("Study Git", "high", "2026-11-10")
+    expected_task = Task(
+        "Study Git",
+        "high",
+        "2026-11-10",
+        category="university",
+    )
 
     assert edited_task == expected_task
     assert updated_tasks == [first_task, expected_task]

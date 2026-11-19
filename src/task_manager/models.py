@@ -11,6 +11,7 @@ class Task:
     status: str = "pending"
     recurrence: str = "none"
     repeat_until: str = ""
+    category: str = "other"
 
 
 class EmptyTitleError(ValueError):

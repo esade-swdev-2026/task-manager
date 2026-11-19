@@ -148,11 +148,22 @@ def add(
         "--repeat-until",
         help="Last occurrence date in YYYY-MM-DD format. Required with --repeat.",
     ),
+    category: str = typer.Option(
+        "other",
+        help="Task category.",
+    ),
 ) -> None:
     data_file = get_data_file(ctx)
 
     try:
-        task = create_task(title, priority, due_date, recurrence=repeat, repeat_until=repeat_until)
+        task = create_task(
+            title,
+            priority,
+            due_date,
+            recurrence=repeat,
+            repeat_until=repeat_until,
+            category=category,
+        )
         if task.recurrence != "none" and not task.repeat_until:
             raise ValueError("Recurring tasks require --repeat-until.")
     except ValueError as error:
@@ -428,11 +439,12 @@ def edit(
         None,
         help="New due date in YYYY-MM-DD format. Use an empty string to clear it.",
     ),
+    category: str | None = typer.Option(None, help="New task category."),
 ) -> None:
     """Edit a saved task selected by its displayed number."""
     data_file = get_data_file(ctx)
 
-    if title is None and priority is None and due_date is None:
+    if title is None and priority is None and due_date is None and category is None:
         typer.echo("Provide at least one field to edit.", err=True)
         raise typer.Exit(1)
 
@@ -451,6 +463,7 @@ def edit(
             title=title,
             priority=priority,
             due_date=due_date,
+            category=category,
         )
     except ValueError as error:
         typer.echo(str(error), err=True)

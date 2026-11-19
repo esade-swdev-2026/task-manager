@@ -69,7 +69,7 @@ def test_add_task() -> None:
 
     task = add_task(tasks, "Study Finance", "high")
 
-    assert task == Task("Study Finance", "high")
+    assert task == Task("Study Finance", "high", category="other")
     assert tasks == [task]
 
 
@@ -782,3 +782,33 @@ def test_recurring_task_does_not_generate_date_after_end() -> None:
 def test_create_recurring_task_rejects_end_before_first_date() -> None:
     with pytest.raises(ValueError, match="End date must be on or after the due date"):
         create_task("Study", due_date="2026-11-18", recurrence="daily", repeat_until="2026-11-17")
+
+
+def test_create_task_with_category() -> None:
+    task = create_task("Study Finance", category="university")
+
+    assert task.category == "university"
+
+
+def test_create_task_default_category() -> None:
+    task = create_task("Study Finance")
+
+    assert task.category == "other"
+
+
+def test_add_task_with_category() -> None:
+    tasks: list[Task] = []
+
+    task = add_task(tasks, "Study Finance", category="university")
+
+    assert task.category == "university"
+    assert task in tasks
+
+
+def test_add_task_default_category() -> None:
+    tasks: list[Task] = []
+
+    task = add_task(tasks, "Study Finance")
+
+    assert task.category == "other"
+    assert task in tasks

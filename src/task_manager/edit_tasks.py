@@ -8,6 +8,7 @@ def edit_task(
     title: str | None = None,
     priority: str | None = None,
     due_date: str | None = None,
+    category: str | None = None,
 ) -> tuple[Task, list[Task]]:
     """Edit a task and return it with the updated task list."""
 
@@ -23,6 +24,7 @@ def edit_task(
         status=original_task.status,
         recurrence=original_task.recurrence,
         repeat_until=original_task.repeat_until,
+        category=original_task.category if category is None else category,
     )
 
     updated_tasks = list(tasks)

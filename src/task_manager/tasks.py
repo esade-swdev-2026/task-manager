@@ -21,6 +21,7 @@ def create_task(
     status: str = "pending",
     recurrence: str = "none",
     repeat_until: str = "",
+    category: str = "other",
 ) -> Task:
     normalized_due_date = normalize_due_date(due_date)
     normalized_recurrence = normalize_recurrence(recurrence)
@@ -40,6 +41,7 @@ def create_task(
         status=normalize_status(status),
         recurrence=normalized_recurrence,
         repeat_until=normalized_repeat_until,
+        category=category,
     )
 
 
@@ -48,9 +50,10 @@ def add_task(
     title: str,
     priority: str = "medium",
     due_date: str = "",
+    category: str = "other",
 ) -> Task:
     """Create a task, append it to the input list, and return the new task."""
-    task = create_task(title, priority, due_date)
+    task = create_task(title, priority, due_date, category=category)
     tasks.append(task)
     return task
 

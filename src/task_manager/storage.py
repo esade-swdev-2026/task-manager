@@ -13,12 +13,26 @@ DUE_DATE = 2
 STATUS = 3
 RECURRENCE = 4
 REPEAT_UNTIL = 5
+CATEGORY = 6
 
 FIELDS_PER_ROW = 4
 
 CSV_HEADER = ["title", "priority", "due_date", "status"]
 RECURRING_HEADER = CSV_HEADER + ["recurrence"]
 BOUNDED_HEADER = RECURRING_HEADER + ["repeat_until"]
+
+CATEGORY_HEADER = CSV_HEADER + ["category"]
+RECURRING_CATEGORY_HEADER = RECURRING_HEADER + ["category"]
+BOUNDED_CATEGORY_HEADER = BOUNDED_HEADER + ["category"]
+
+VALID_HEADERS = [
+    CSV_HEADER,
+    RECURRING_HEADER,
+    BOUNDED_HEADER,
+    CATEGORY_HEADER,
+    RECURRING_CATEGORY_HEADER,
+    BOUNDED_CATEGORY_HEADER,
+]
 
 
 def read_tasks(path: Path) -> list[Task]:
@@ -30,7 +44,7 @@ def read_tasks(path: Path) -> list[Task]:
         try:
             header = next(reader, None)
 
-            if header not in (CSV_HEADER, RECURRING_HEADER, BOUNDED_HEADER):
+            if header not in VALID_HEADERS:
                 raise ValueError("Invalid CSV header.")
 
             expected_columns = len(header)
@@ -47,8 +61,9 @@ def read_tasks(path: Path) -> list[Task]:
                         priority=row[PRIORITY],
                         due_date=row[DUE_DATE],
                         status=row[STATUS],
-                        recurrence=(row[RECURRENCE] if header != CSV_HEADER else "none"),
-                        repeat_until=row[REPEAT_UNTIL] if header == BOUNDED_HEADER else "",
+                        recurrence=row[RECURRENCE] if "recurrence" in header else "none",
+                        repeat_until=row[REPEAT_UNTIL] if "repeat_until" in header else "",
+                        category=row[header.index("category")] if "category" in header else "other",
                     )
                 except ValueError as error:
                     raise ValueError(f"Invalid CSV row {row_number}: {error}") from error
@@ -90,12 +105,13 @@ def write_tasks(path: Path, tasks: list[Task]) -> None:
             include_recurrence = include_end_date or any(
                 task.recurrence != "none" for task in tasks
             )
+
             writer.writerow(
-                BOUNDED_HEADER
+                BOUNDED_CATEGORY_HEADER
                 if include_end_date
-                else RECURRING_HEADER
+                else RECURRING_CATEGORY_HEADER
                 if include_recurrence
-                else CSV_HEADER
+                else CATEGORY_HEADER
             )
 
             for task in tasks:
@@ -105,6 +121,8 @@ def write_tasks(path: Path, tasks: list[Task]) -> None:
                     row.append(task.recurrence)
                 if include_end_date:
                     row.append(task.repeat_until)
+
+                row.append(task.category)
 
                 writer.writerow(row)
 
