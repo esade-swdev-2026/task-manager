@@ -715,20 +715,25 @@ def test_done_without_pending_tasks(
     assert "No pending tasks found." in result.stderr
 
 
+@pytest.mark.parametrize(
+    ("command", "initial_status"),
+    [("done", "pending"), ("reopen", "completed")],
+)
 @pytest.mark.parametrize("selection", ["0\n", "-1\n", "99\n", "abc\n"])
-def test_done_invalid_selection_preserves_csv(
+def test_status_command_invalid_selection_preserves_csv(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    command: str,
+    initial_status: str,
     selection: str,
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    assert runner.invoke(app, ["add", "Study Python"]).exit_code == 0
-
     path = Path("storage_tasks/tasks.csv")
+    write_tasks(path, [Task("Study Python", "high", "", initial_status)])
     original_contents = path.read_bytes()
 
-    result = runner.invoke(app, ["done"], input=selection)
+    result = runner.invoke(app, [command], input=selection)
 
     assert result.exit_code == 1
     assert path.read_bytes() == original_contents
@@ -818,25 +823,6 @@ def test_reopen_without_completed_tasks(
 
     assert result.exit_code == 1
     assert "No completed tasks found." in result.stderr
-
-
-@pytest.mark.parametrize("selection", ["0\n", "-1\n", "99\n", "abc\n"])
-def test_reopen_invalid_selection_preserves_csv(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    selection: str,
-) -> None:
-    monkeypatch.chdir(tmp_path)
-
-    path = Path("storage_tasks/tasks.csv")
-    write_tasks(path, [Task("Study Python", "high", "", "completed")])
-
-    original_contents = path.read_bytes()
-
-    result = runner.invoke(app, ["reopen"], input=selection)
-
-    assert result.exit_code == 1
-    assert path.read_bytes() == original_contents
 
 
 def test_reopen_respects_displayed_order_and_preserves_csv_order(
@@ -1207,16 +1193,25 @@ def test_today_handles_no_matching_tasks(
     assert result.output.strip() == "No tasks due today or overdue."
 
 
-def test_today_handles_missing_csv(
+@pytest.mark.parametrize(
+    ("command", "expected_message"),
+    [
+        ("today", "No tasks due today or overdue."),
+        ("due-soon", "No tasks due in the next seven days."),
+    ],
+)
+def test_date_view_handles_missing_csv(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    command: str,
+    expected_message: str,
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(app, ["today"])
+    result = runner.invoke(app, [command])
 
     assert result.exit_code == 0
-    assert result.output.strip() == "No tasks due today or overdue."
+    assert result.output.strip() == expected_message
 
 
 def test_due_soon_shows_upcoming_tasks_without_changing_csv(
@@ -1269,18 +1264,6 @@ def test_due_soon_handles_no_matching_tasks(
             Task("Completed", "low", "2026-11-18", "completed"),
         ],
     )
-
-    result = runner.invoke(app, ["due-soon"])
-
-    assert result.exit_code == 0
-    assert result.output.strip() == "No tasks due in the next seven days."
-
-
-def test_due_soon_handles_missing_csv(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(app, ["due-soon"])
 
