@@ -1,4 +1,5 @@
 from calendar import monthrange
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import date, timedelta
 
@@ -80,16 +81,17 @@ def filter_overdue_tasks(tasks: list[Task], today: date) -> list[Task]:
     return [task for task in tasks if is_overdue(task, today)]
 
 
+def _pending_tasks_with_due_dates(tasks: list[Task]) -> Iterator[tuple[Task, date]]:
+    for task in tasks:
+        if task.status == "pending" and task.due_date != "":
+            yield task, date.fromisoformat(task.due_date)
+
+
 def tasks_for_today(tasks: list[Task], today: date) -> list[Task]:
     """Return pending tasks due today or earlier, sorted by due date."""
     selected_tasks = [
-        task
-        for task in tasks
-        if task.status == "pending"
-        and task.due_date != ""
-        and date.fromisoformat(task.due_date) <= today
+        task for task, due_date in _pending_tasks_with_due_dates(tasks) if due_date <= today
     ]
-
     return sort_tasks_by_due_date(selected_tasks)
 
 
@@ -97,10 +99,8 @@ def tasks_due_soon(tasks: list[Task], today: date) -> list[Task]:
     """Return pending tasks due within the next seven days, excluding today."""
     selected_tasks = [
         task
-        for task in tasks
-        if task.status == "pending"
-        and task.due_date != ""
-        and 1 <= (date.fromisoformat(task.due_date) - today).days <= 7
+        for task, due_date in _pending_tasks_with_due_dates(tasks)
+        if 1 <= (due_date - today).days <= 7
     ]
     return sort_tasks_by_due_date(selected_tasks)
 
