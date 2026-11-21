@@ -501,8 +501,26 @@ def weekly_review_command(ctx: typer.Context) -> None:
         reference_date,
     )
 
+    section = ""
+
     for line in report:
-        typer.echo(line)
+        if line.startswith("OVERDUE TASKS"):
+            section = "overdue"
+        elif line.startswith("DUE TODAY"):
+            section = "due_today"
+        elif line.startswith("UPCOMING - NEXT 7 DAYS"):
+            section = "upcoming"
+        elif line.startswith("CURRENTLY COMPLETED:"):
+            section = "completed"
+
+        if section == "overdue":
+            typer.secho(line, fg=typer.colors.RED)
+        elif section == "due_today":
+            typer.secho(line, fg=typer.colors.YELLOW)
+        elif section == "completed":
+            typer.secho(line, fg=typer.colors.GREEN)
+        else:
+            typer.echo(line)
 
 
 @app.command()
