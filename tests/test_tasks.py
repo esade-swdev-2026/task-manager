@@ -11,7 +11,6 @@ from task_manager.models import (
     Task,
 )
 from task_manager.tasks import (
-    add_task,
     complete_task,
     count_tasks_by_priority,
     create_task,
@@ -63,15 +62,6 @@ def test_create_task_rejects_invalid_priority() -> None:
 def test_create_task_rejects_invalid_due_date() -> None:
     with pytest.raises(InvalidDueDate, match="Due date must use YYYY-MM-DD"):
         create_task("Study Finance", due_date="01-12-2026")
-
-
-def test_add_task() -> None:
-    tasks: list[Task] = []
-
-    task = add_task(tasks, "Study Finance", "high")
-
-    assert task == Task("Study Finance", "high", category="other")
-    assert tasks == [task]
 
 
 def test_count_empty_list_of_tasks() -> None:
@@ -721,9 +711,26 @@ def test_complete_weekly_and_monthly_tasks(
 
 
 def test_create_recurring_task() -> None:
-    task = create_task("Study Python", "high", "2026-11-18", recurrence="weekly")
+    task = create_task(
+        "Study Python",
+        "high",
+        "2026-11-18",
+        recurrence="weekly",
+        repeat_until="2026-12-31",
+    )
 
     assert task.recurrence == "weekly"
+    assert task.repeat_until == "2026-12-31"
+
+
+def test_create_recurring_task_requires_end_date() -> None:
+    with pytest.raises(ValueError, match="Recurring tasks require an end date."):
+        create_task(
+            "Study Python",
+            "high",
+            "2026-11-18",
+            recurrence="weekly",
+        )
 
 
 def test_create_recurring_task_requires_due_date() -> None:
@@ -797,24 +804,6 @@ def test_create_task_default_category() -> None:
     task = create_task("Study Finance")
 
     assert task.category == "other"
-
-
-def test_add_task_with_category() -> None:
-    tasks: list[Task] = []
-
-    task = add_task(tasks, "Study Finance", category="university")
-
-    assert task.category == "university"
-    assert task in tasks
-
-
-def test_add_task_default_category() -> None:
-    tasks: list[Task] = []
-
-    task = add_task(tasks, "Study Finance")
-
-    assert task.category == "other"
-    assert task in tasks
 
 
 def test_weekly_review_includes_tasks_due_today() -> None:
