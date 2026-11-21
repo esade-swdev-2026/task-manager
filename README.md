@@ -67,9 +67,10 @@ uv run task-manager list
 ```
 
 ```text
-1. [PENDING] Prepare finance presentation - high - due 2027-10-20
-2. [PENDING] Buy printer paper - medium
-3. [PENDING] Book dentist appointment - low - due 2027-10-17
+1. [PENDING] Prepare finance presentation - high - due 2027-10-20 - category university
+2. [PENDING] Buy printer paper - medium - category personal
+3. [PENDING] Book dentist appointment - low - due 2027-10-17 - category personal
+
 ```
 
 The priority order can also be requested explicitly:
@@ -87,9 +88,9 @@ uv run task-manager list --sort-by date
 ```
 
 ```text
-1. [PENDING] Book dentist appointment - low - due 2027-10-17
-2. [PENDING] Prepare finance presentation - high - due 2027-10-20
-3. [PENDING] Buy printer paper - medium
+1. [PENDING] Book dentist appointment - low - due 2027-10-17 - category personal
+2. [PENDING] Prepare finance presentation - high - due 2027-10-20 - category university
+3. [PENDING] Buy printer paper - medium - category personal
 ```
 
 Tasks without a due date are placed at the end.
@@ -114,6 +115,23 @@ uv run task-manager list --status pending --priority high --sort-by date
 ```
 
 Filtering only changes which tasks are displayed; it does not modify the saved CSV file.
+
+
+Tasks can also be filtered by category:
+
+```bash
+uv run task-manager list --category university
+```
+
+Category filtering is case-insensitive and ignores surrounding spaces.
+It can be combined with status and priority filters:
+
+```bash
+uv run task-manager list --category university --status pending --priority high
+```
+
+Tasks with a custom category display it alongside their priority and due date.
+The default category, `other`, is not displayed.
 
 
 
@@ -151,11 +169,11 @@ after it. When you complete a recurring task with `done`, the completed task
 stays in the CSV and the next pending occurrence is created automatically.
 Completing an overdue task skips missed dates; the next occurrence may be due
 today, but will not be dated in the past. Reopening and completing a task again
-does not create an identical next occurrence. Monthly dates are capped at the
-last day of shorter months (for example, January 31 → February 28 in 2026).
+does not create an identical next occurrence.
 
-Existing CSV files containing recurring tasks without an end date remain
-readable. These older recurring tasks retain their original unlimited schedule.
+Recurrence intervals are fixed: `daily` repeats every 1 day, `weekly` every 7 days, and `monthly` every 30 days (not a calendar month).
+
+For example, a monthly task due on January 31, 2026, will next be due on March 2, 2026.
 
 ### Tasks for today
 
@@ -201,12 +219,6 @@ The calendar displays a seven-column grid from Monday to Sunday. Days containing
 Below the calendar, an aligned table lists the tasks for the selected month, including their due date, title, status, and priority.
 
 Both pending and completed tasks are included. Tasks without due dates or with deadlines outside the selected month are excluded.
-
-The calendar also supports custom CSV files:
-
-```bash
-uv run task-manager --data-file university.csv calendar --month 11 --year 2026
-```
 
 Calendar view is read-only and does not modify saved tasks.
 
@@ -307,31 +319,7 @@ Invalid values, invalid task numbers and changes that would create an
 exact duplicate are rejected without modifying saved data.
 At least one field must be provided.
 
-### Custom data file
-
-By default, tasks are stored in `storage_tasks/tasks.csv`.
-
-You can use a different CSV file with the global `--data-file` option:
-
-```bash
-uv run task-manager --data-file university.csv add "Study Python"
-uv run task-manager --data-file university.csv list
-```
-
-Different files can be used to manage separate task lists:
-
-```bash
-uv run task-manager --data-file personal.csv add "Buy groceries"
-uv run task-manager --data-file personal.csv list
-```
-
-The option works with all commands, including `add`, `list`, `edit`, `delete`, `done`, `reopen`, `search`, `priority`, `today`, `due-soon`,`calendar` and `summary`.
-
-Relative and absolute paths are supported, including paths containing spaces. Missing parent directories are created when saving tasks.
-
-If `--data-file` is not provided, the default CSV file is used. Each file remains independent, so tasks from different files are never mixed.
-
-**### Weekly review**
+### Weekly review
 
 Display an overview of overdue, due-today, upcoming, and completed tasks:
 
@@ -367,8 +355,8 @@ Invalid selections do not modify saved tasks. Updating or deleting tasks preserv
 
 | Command | Purpose | Inputs |
 |---|---|---|
-| `add` | Validates and saves a new task. | Required title; optional `--priority` and `--due-date`; for recurring tasks, `--repeat` and `--repeat-until` are required. |
-| `list` | Displays saved tasks with optional sorting and filtering. | Optional `--sort-by`, `--status`, and `--priority`. |
+| `add` | Validates and saves a new task. | Required title; optional `--priority`, `--due-date`, and `--category`; for recurring tasks, `--repeat` and `--repeat-until` are required. |
+| `list` | Displays saved tasks with optional sorting and filtering. | Optional `--sort-by`, `--status`, `--priority`, and `--category`. |
 | `done` | Marks a selected task as completed. | Task number requested interactively. |
 | `reopen` | Changes a completed task back to pending. | Task number requested interactively. |
 | `delete` | Deletes a selected task. | Task number requested interactively. |
@@ -379,7 +367,6 @@ Invalid selections do not modify saved tasks. Updating or deleting tasks preserv
 | `weekly-review` | Displays overdue tasks, upcoming tasks, and the completed count. | No arguments. |
 | `calendar` | Displays tasks due in a monthly calendar. | Optional `--month` and `--year`. |
 | `summary` | Displays task statistics and completion rate. | No arguments. |
-| `priority` | Displays task counts and lists tasks sorted by priority. | No arguments. |
 
 More information about any command is available through `--help`:
 
@@ -395,7 +382,6 @@ uv run task-manager edit --help
 uv run task-manager today --help
 uv run task-manager due-soon --help
 uv run task-manager summary --help
-uv run task-manager priority --help
 uv run task-manager calendar --help
 uv run task-manager weekly-review --help
 ```
@@ -465,15 +451,32 @@ storage_tasks/tasks.csv
 The directory and CSV file are created automatically when the first task is
 added.
 
-Ordinary tasks use four fields:
+The CSV format depends on the types of tasks being stored.
+
+Regular tasks are saved using five columns:
 
 ```text
-title,priority,due_date,status
+title,priority,due_date,status,category
 ```
 
-Recurring tasks add a `recurrence` column. Tasks with an end date also add
-`repeat_until`; the same columns apply to every row of that CSV file. Existing
-four-column and five-column files are still readable.
+When recurring tasks are included, the CSV also stores their recurrence
+frequency and final recurrence date:
+
+```text
+title,priority,due_date,status,recurrence,repeat_until,category
+```
+
+For recurring tasks:
+- `due_date` identifies the scheduled date of the current occurrence.
+- `recurrence` defines how often the task repeats: daily, weekly, or monthly.
+- `repeat_until` defines the last date on which an occurrence can be scheduled.
+
+All tasks in the same CSV file share the same columns. Fields that do
+not apply to a task are stored with their default values or left empty.
+
+The application also supports older CSV files containing non-recurring
+tasks without a category column.
+
 
 Tasks are marked as `pending` or `completed`. New tasks have `pending` status by default.
 
@@ -584,7 +587,7 @@ docker run --rm -v task-manager-data:/app/storage_tasks task-manager list
 
 The named volume `task-manager-data` stores tasks in `storage_tasks/tasks.csv`, ensuring that data persists even after a container is removed.
 
-## Generative AI disclosure
+## Use of AI
 
 ChatGPT and Codex (OpenAI) were used as support tools.
 
