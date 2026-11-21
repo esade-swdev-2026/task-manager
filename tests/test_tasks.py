@@ -29,6 +29,7 @@ from task_manager.tasks import (
     sort_tasks_by_priority,
     task_summary,
     tasks_due_soon,
+    tasks_due_today,
     tasks_for_today,
     weekly_review,
 )
@@ -837,3 +838,17 @@ def test_weekly_review_includes_tasks_due_today() -> None:
     assert [task.title for task in due_today] == ["Today's task"]
     assert [task.title for task in upcoming] == ["Upcoming task"]
     assert completed == 1
+
+
+def test_tasks_due_today_only_returns_pending_tasks_due_today() -> None:
+    today = date(2026, 11, 17)
+    tasks = [
+        Task("Due today", "high", "2026-11-17"),
+        Task("Future", "low", "2026-11-18"),
+        Task("Overdue", "medium", "2026-11-16"),
+        Task("Completed today", "high", "2026-11-17", "completed"),
+        Task("No due date", "low"),
+    ]
+    result = tasks_due_today(tasks, today)
+
+    assert result == [tasks[0]]

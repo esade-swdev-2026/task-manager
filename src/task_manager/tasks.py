@@ -95,6 +95,14 @@ def tasks_for_today(tasks: list[Task], today: date) -> list[Task]:
     return sort_tasks_by_due_date(selected_tasks)
 
 
+def tasks_due_today(tasks: list[Task], today: date) -> list[Task]:
+    """Return pending tasks due exactly today."""
+    selected_tasks = [
+        task for task, due_date in _pending_tasks_with_due_dates(tasks) if due_date == today
+    ]
+    return sort_tasks_by_due_date(selected_tasks)
+
+
 def tasks_due_soon(tasks: list[Task], today: date) -> list[Task]:
     """Return pending tasks due within the next seven days, excluding today."""
     selected_tasks = [
@@ -302,11 +310,7 @@ def weekly_review(
 
     overdue_tasks = filter_overdue_tasks(tasks, today)
 
-    due_today_tasks = [
-        task
-        for task in tasks
-        if task.status == "pending" and task.due_date and date.fromisoformat(task.due_date) == today
-    ]
+    due_today_tasks = tasks_due_today(tasks, today)
 
     upcoming_tasks = tasks_due_soon(tasks, today)
 

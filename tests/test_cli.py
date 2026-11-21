@@ -1625,6 +1625,40 @@ def test_weekly_review_displays_report_without_changing_csv(
     assert path.read_bytes() == original_contents
 
 
+def test_weekly_review_displays_correct_colours(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "current_date", lambda: date(2026, 11, 17))
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Overdue task", "high", "2026-11-16"),
+            Task("Due today task", "medium", "2026-11-17"),
+            Task("Upcoming task", "low", "2026-11-20"),
+            Task("Completed task", "high", "2026-11-15", "completed"),
+        ],
+    )
+
+    result = runner.invoke(app, ["weekly-review"], color=True)
+
+    assert result.exit_code == 0
+    assert "\033[31mOVERDUE TASKS (1)" in result.output
+    assert "\033[33mDUE TODAY (1)" in result.output
+    assert "\033[32mCURRENTLY COMPLETED: 1 TASKS" in result.output
+
+    overdue_task_line = next(line for line in result.output.splitlines() if "Overdue task" in line)
+    due_today_task_line = next(
+        line for line in result.output.splitlines() if "Due today task" in line
+    )
+
+    assert overdue_task_line.startswith("\033[31m")
+    assert due_today_task_line.startswith("\033[33m")
+
+
 def test_add_and_complete_daily_recurring_task(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
