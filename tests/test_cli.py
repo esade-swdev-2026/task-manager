@@ -1650,6 +1650,14 @@ def test_weekly_review_displays_correct_colours(
     assert "\033[33mDUE TODAY (1)" in result.output
     assert "\033[32mCURRENTLY COMPLETED: 1 TASKS" in result.output
 
+    overdue_task_line = next(line for line in result.output.splitlines() if "Overdue task" in line)
+    due_today_task_line = next(
+        line for line in result.output.splitlines() if "Due today task" in line
+    )
+
+    assert overdue_task_line.startswith("\033[31m")
+    assert due_today_task_line.startswith("\033[33m")
+
 
 def test_add_and_complete_daily_recurring_task(
     tmp_path: Path,
