@@ -34,6 +34,8 @@ def create_task(
         raise ValueError("An end date requires a recurring task.")
     if normalized_repeat_until and normalized_repeat_until < normalized_due_date:
         raise ValueError("End date must be on or after the due date.")
+    if normalized_recurrence != "none" and not normalized_repeat_until:
+        raise ValueError("Recurring tasks require an end date.")
 
     return Task(
         title=normalize_title(title),
@@ -44,19 +46,6 @@ def create_task(
         repeat_until=normalized_repeat_until,
         category=category,
     )
-
-
-def add_task(
-    tasks: list[Task],
-    title: str,
-    priority: str = "medium",
-    due_date: str = "",
-    category: str = "other",
-) -> Task:
-    """Create a task, append it to the input list, and return the new task."""
-    task = create_task(title, priority, due_date, category=category)
-    tasks.append(task)
-    return task
 
 
 def filter_tasks_by_status(tasks: list[Task], status: str) -> list[Task]:

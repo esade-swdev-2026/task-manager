@@ -1,7 +1,6 @@
 import csv
 from datetime import date
 from pathlib import Path
-from typing import Annotated
 
 import typer
 
@@ -105,30 +104,8 @@ def select_task_number(
         raise typer.Exit(1) from None
 
 
-@app.callback()
-def main(
-    ctx: typer.Context,
-    data_file: Annotated[
-        Path,
-        typer.Option(
-            "--data-file",
-            help="Path to the CSV file used to store tasks.",
-        ),
-    ] = DATA_FILE,
-) -> None:
-    """Manage your tasks."""
-    ctx.obj = data_file
-
-
-def get_data_file(ctx: typer.Context) -> Path:
-    data_file = ctx.obj
-    assert isinstance(data_file, Path)
-    return data_file
-
-
 @app.command()
 def add(
-    ctx: typer.Context,
     title: str,
     priority: str = typer.Option(
         "medium",
@@ -153,7 +130,7 @@ def add(
         help="Task category.",
     ),
 ) -> None:
-    data_file = get_data_file(ctx)
+    data_file = DATA_FILE
 
     try:
         task = create_task(
@@ -164,8 +141,7 @@ def add(
             repeat_until=repeat_until,
             category=category,
         )
-        if task.recurrence != "none" and not task.repeat_until:
-            raise ValueError("Recurring tasks require --repeat-until.")
+
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from None
@@ -187,7 +163,6 @@ def add(
 
 @app.command("list")
 def list_tasks(
-    ctx: typer.Context,
     sort_by: str = typer.Option(
         "priority",
         help="Sort tasks by priority or date.",
@@ -201,7 +176,7 @@ def list_tasks(
         help="Show tasks with high, medium, low, or all priorities.",
     ),
 ) -> None:
-    data_file = get_data_file(ctx)
+    data_file = DATA_FILE
     normalized_sort = sort_by.strip().lower()
 
     if normalized_sort not in SORT_OPTIONS:
@@ -255,10 +230,10 @@ def list_tasks(
         typer.echo(line)
 
 
-@app.command()
-def today(ctx: typer.Context) -> None:
+@app.command("today")
+def today() -> None:
     """Show pending tasks that are overdue or due today."""
-    data_file = get_data_file(ctx)
+    data_file = DATA_FILE
     tasks = load_tasks_or_exit(data_file)
     reference_date = current_date()
 
@@ -273,9 +248,9 @@ def today(ctx: typer.Context) -> None:
 
 
 @app.command("due-soon")
-def due_soon(ctx: typer.Context) -> None:
+def due_soon() -> None:
     """Show pending tasks due within the next seven days."""
-    data_file = get_data_file(ctx)
+    data_file = DATA_FILE
     tasks = load_tasks_or_exit(data_file)
     reference_date = current_date()
 
@@ -290,9 +265,9 @@ def due_soon(ctx: typer.Context) -> None:
 
 
 @app.command()
-def summary(ctx: typer.Context) -> None:
+def summary() -> None:
     """Show statistics about all tasks."""
-    data_file = get_data_file(ctx)
+    data_file = DATA_FILE
     tasks = load_tasks_or_exit(data_file)
     statistics = task_summary(tasks, current_date())
 
@@ -311,8 +286,8 @@ def summary(ctx: typer.Context) -> None:
 
 
 @app.command()
-def delete(ctx: typer.Context) -> None:
-    data_file = get_data_file(ctx)
+def delete() -> None:
+    data_file = DATA_FILE
     tasks = load_tasks_or_exit(data_file)
 
     if not tasks:
@@ -333,9 +308,9 @@ def delete(ctx: typer.Context) -> None:
 
 
 @app.command()
-def done(ctx: typer.Context) -> None:
+def done() -> None:
     """Mark a pending task as completed."""
-    data_file = get_data_file(ctx)
+    data_file = DATA_FILE
     tasks = load_tasks_or_exit(data_file)
 
     pending_tasks = [task for task in tasks if task.status == "pending"]
@@ -358,9 +333,9 @@ def done(ctx: typer.Context) -> None:
 
 
 @app.command()
-def reopen(ctx: typer.Context) -> None:
+def reopen() -> None:
     """Reopen a completed task."""
-    data_file = get_data_file(ctx)
+    data_file = DATA_FILE
     tasks = load_tasks_or_exit(data_file)
 
     completed_tasks = [task for task in tasks if task.status == "completed"]
@@ -384,8 +359,8 @@ def reopen(ctx: typer.Context) -> None:
 
 
 @app.command()
-def priority(ctx: typer.Context) -> None:
-    data_file = get_data_file(ctx)
+def priority() -> None:
+    data_file = DATA_FILE
     tasks = load_tasks_or_exit(data_file)
 
     counts = count_tasks_by_priority(tasks)
@@ -407,15 +382,16 @@ def priority(ctx: typer.Context) -> None:
 
 
 @app.command()
-def search(ctx: typer.Context, keyword: str) -> None:
+def search(keyword: str) -> None:
     """Search saved tasks by a keyword in their title."""
     normalized_keyword = keyword.strip()
+    data_file = DATA_FILE
 
     if not normalized_keyword:
         typer.echo("Search keyword cannot be empty.", err=True)
         raise typer.Exit(1)
 
-    tasks = load_tasks_or_exit(get_data_file(ctx))
+    tasks = load_tasks_or_exit(data_file)
     if not tasks:
         typer.echo("No tasks found.")
         return
@@ -432,7 +408,6 @@ def search(ctx: typer.Context, keyword: str) -> None:
 
 @app.command()
 def edit(
-    ctx: typer.Context,
     title: str | None = typer.Option(None, help="New task title."),
     priority: str | None = typer.Option(None, help="New priority: low, medium, or high."),
     due_date: str | None = typer.Option(
@@ -442,7 +417,7 @@ def edit(
     category: str | None = typer.Option(None, help="New task category."),
 ) -> None:
     """Edit a saved task selected by its displayed number."""
-    data_file = get_data_file(ctx)
+    data_file = DATA_FILE
 
     if title is None and priority is None and due_date is None and category is None:
         typer.echo("Provide at least one field to edit.", err=True)
@@ -483,9 +458,9 @@ def edit(
 
 
 @app.command("weekly-review")
-def weekly_review_command(ctx: typer.Context) -> None:
+def weekly_review_command() -> None:
     """Show a weekly overview of overdue, due-today, upcoming and completed tasks."""
-    data_file = get_data_file(ctx)
+    data_file = DATA_FILE
     tasks = load_tasks_or_exit(data_file)
     reference_date = current_date()
 
@@ -525,11 +500,11 @@ def weekly_review_command(ctx: typer.Context) -> None:
 
 @app.command()
 def calendar(
-    ctx: typer.Context,
     month: int | None = typer.Option(None, help="Month to display (1-12)."),
     year: int | None = typer.Option(None, help="Year to display."),
 ) -> None:
     """Display tasks in a monthly calendar."""
+    data_file = DATA_FILE
     today = current_date()
 
     selected_month = month if month is not None else today.month
@@ -543,7 +518,7 @@ def calendar(
         typer.echo("Year must be between 1 and 9999.", err=True)
         raise typer.Exit(1)
 
-    tasks = load_tasks_or_exit(get_data_file(ctx))
+    tasks = load_tasks_or_exit(data_file)
 
     lines = format_calendar(tasks, selected_year, selected_month)
 
