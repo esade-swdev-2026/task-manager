@@ -28,6 +28,9 @@ def view_tasks(
         if task.due_date != "":
             line = f"{line} - due {task.due_date}"
 
+        if task.category != "other":
+            line = f"{line} - category {task.category}"
+
         lines.append(line)
 
     return lines
@@ -77,7 +80,9 @@ def format_weekly_review(
     else:
         lines.append("No upcoming tasks.")
 
-    lines.extend(["", "-" * 40, f"CURRENTLY COMPLETED: {completed_count} TASKS", "=" * 40])
+    task_label = "TASK" if completed_count == 1 else "TASKS"
+    lines.extend(["", "-" * 40, f"CURRENTLY COMPLETED: {completed_count} {task_label}", "=" * 40])
+
     return lines
 
 

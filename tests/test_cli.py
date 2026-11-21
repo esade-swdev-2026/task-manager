@@ -91,7 +91,7 @@ def test_load_tasks_or_exit_handles_read_errors(
         ["add", "New task"],
         ["list"],
         ["delete"],
-        ["priority"],
+        ["summary"],
         ["search", "study"],
         ["edit", "--title", "Updated task"],
     ],
@@ -311,7 +311,7 @@ def test_list_rejects_invalid_sort_option(tmp_path: Path, monkeypatch: pytest.Mo
     assert "Traceback" not in result.output
 
 
-def test_priority_counts_and_sorts_tasks(
+def test_list_and_summary_cover_priority_command_features(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -322,16 +322,16 @@ def test_priority_counts_and_sorts_tasks(
     assert runner.invoke(app, ["add", "Medium task", "--priority", "medium"]).exit_code == 0
     assert runner.invoke(app, ["add", "Another high task", "--priority", "high"]).exit_code == 0
 
-    result = runner.invoke(app, ["priority"])
+    statistics = runner.invoke(app, ["summary"])
+    listed = runner.invoke(app, ["list"])
 
-    assert result.exit_code == 0
-    assert result.output.splitlines() == [
-        "Tasks by priority:",
-        "High: 2",
-        "Medium: 1",
-        "Low: 1",
-        "",
-        "Tasks sorted by priority:",
+    assert statistics.exit_code == 0
+    assert "High: 2" in statistics.output
+    assert "Medium: 1" in statistics.output
+    assert "Low: 1" in statistics.output
+
+    assert listed.exit_code == 0
+    assert listed.output.splitlines() == [
         "1. [PENDING] High task - high",
         "2. [PENDING] Another high task - high",
         "3. [PENDING] Medium task - medium",
@@ -339,19 +339,7 @@ def test_priority_counts_and_sorts_tasks(
     ]
 
 
-def test_priority_when_no_tasks_exist(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.chdir(tmp_path)
-
-    result = runner.invoke(app, ["priority"])
-
-    assert result.exit_code == 0
-    assert "No tasks found." in result.output
-
-
-def test_priority_with_only_high_priority_tasks(
+def test_summary_with_only_high_priority_tasks(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -360,14 +348,12 @@ def test_priority_with_only_high_priority_tasks(
     assert runner.invoke(app, ["add", "First task", "--priority", "high"]).exit_code == 0
     assert runner.invoke(app, ["add", "Second task", "--priority", "high"]).exit_code == 0
 
-    result = runner.invoke(app, ["priority"])
+    result = runner.invoke(app, ["summary"])
 
     assert result.exit_code == 0
     assert "High: 2" in result.output
     assert "Medium: 0" in result.output
     assert "Low: 0" in result.output
-    assert "1. [PENDING] First task - high" in result.output
-    assert "2. [PENDING] Second task - high" in result.output
 
 
 def test_edit_updates_selected_task_and_preserves_other_fields(
@@ -489,7 +475,7 @@ def test_edit_priority_preserves_file_order(
         Task("High", "low"),
         Task("Medium", "medium"),
     ]
-    displayed = runner.invoke(app, ["priority"])
+    displayed = runner.invoke(app, ["list"])
     assert "1. [PENDING] Medium - medium" in displayed.output
     assert "2. [PENDING] Low - low" in displayed.output
     assert "3. [PENDING] High - low" in displayed.output
@@ -1400,7 +1386,7 @@ def test_weekly_review_displays_report_without_changing_csv(
     assert "Overdue task" in result.output
     assert "UPCOMING - NEXT 7 DAYS (1)" in result.output
     assert "Upcoming task" in result.output
-    assert "CURRENTLY COMPLETED: 1 TASKS" in result.output
+    assert "CURRENTLY COMPLETED: 1 TASK" in result.output.splitlines()
     assert "Outside the week" not in result.output
 
     assert path.read_bytes() == original_contents
@@ -1429,7 +1415,7 @@ def test_weekly_review_displays_correct_colours(
     assert result.exit_code == 0
     assert "\033[31mOVERDUE TASKS (1)" in result.output
     assert "\033[33mDUE TODAY (1)" in result.output
-    assert "\033[32mCURRENTLY COMPLETED: 1 TASKS" in result.output
+    assert "\033[32mCURRENTLY COMPLETED: 1 TASK\033[0m" in result.output
 
     overdue_task_line = next(line for line in result.output.splitlines() if "Overdue task" in line)
     due_today_task_line = next(
@@ -1638,3 +1624,83 @@ def test_edit_changes_category_and_preserves_other_fields(
     assert read_tasks(Path("storage_tasks/tasks.csv")) == [
         Task("Study Finance", "high", "2026-11-20", category="university")
     ]
+
+
+def test_list_filters_by_category_without_changing_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Study Finance", "high", category="university"),
+            Task("Buy groceries", "low", category="personal"),
+            Task("Write essay", "medium", category="university"),
+        ],
+    )
+
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(app, ["list", "--category", "university"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] Study Finance - high - category university",
+        "2. [PENDING] Write essay - medium - category university",
+    ]
+    assert path.read_bytes() == original_contents
+
+
+def test_list_rejects_empty_category_without_saved_tasks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["list", "--category", "   "])
+
+    assert result.exit_code == 1
+    assert "Category filter cannot be empty." in result.stderr
+    assert not Path("storage_tasks/tasks.csv").exists()
+
+
+def test_list_combines_category_priority_and_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = Path("storage_tasks/tasks.csv")
+    write_tasks(
+        path,
+        [
+            Task("Study Finance", "high", category="university"),
+            Task("Write essay", "medium", category="university"),
+            Task("Buy groceries", "high", category="personal"),
+            Task("Finished essay", "high", "2026-11-18", "completed", category="university"),
+        ],
+    )
+
+    original_contents = path.read_bytes()
+
+    result = runner.invoke(
+        app,
+        [
+            "list",
+            "--category",
+            " UNIVERSITY ",
+            "--priority",
+            "high",
+            "--status",
+            "pending",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "1. [PENDING] Study Finance - high - category university",
+    ]
+    assert path.read_bytes() == original_contents

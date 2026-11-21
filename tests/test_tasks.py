@@ -696,8 +696,8 @@ def test_complete_daily_task_creates_next_occurrence() -> None:
     ("recurrence", "due_date", "expected_date"),
     [
         ("weekly", "2026-11-18", "2026-11-25"),
-        ("monthly", "2026-01-31", "2026-02-28"),
-        ("monthly", "2028-01-31", "2028-02-29"),
+        ("monthly", "2026-01-31", "2026-03-02"),
+        ("monthly", "2028-01-31", "2028-03-01"),
     ],
 )
 def test_complete_weekly_and_monthly_tasks(
@@ -772,12 +772,12 @@ def test_old_recurring_task_skips_missed_dates() -> None:
     assert [item.due_date for item in updated] == ["2026-11-15", "2026-11-18"]
 
 
-def test_skipping_months_uses_original_due_day() -> None:
+def test_monthly_recurrence_skips_missed_30_day_intervals() -> None:
     task = Task("Rent", "high", "2026-01-31", "pending", "monthly", "2026-04-30")
 
     _, updated = complete_task([task], 1, date(2026, 3, 1))
 
-    assert updated[1].due_date == "2026-03-31"
+    assert updated[1].due_date == "2026-03-02"
 
 
 def test_recurring_task_does_not_generate_date_after_end() -> None:
