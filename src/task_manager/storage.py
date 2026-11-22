@@ -73,13 +73,6 @@ def read_tasks(path: Path) -> list[Task]:
     return tasks
 
 
-def append_task(path: Path, task: Task) -> None:
-    tasks = read_tasks(path) if path.exists() and path.stat().st_size > 0 else []
-
-    tasks.append(task)
-    write_tasks(path, tasks)
-
-
 def write_tasks(path: Path, tasks: list[Task]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 

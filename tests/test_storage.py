@@ -4,29 +4,7 @@ from typing import NoReturn, TextIO
 import pytest
 
 from task_manager.models import Task
-from task_manager.storage import append_task, delete_task, read_tasks, write_tasks
-
-
-def test_append_task_creates_csv_and_saves_task(tmp_path: Path) -> None:
-    path = tmp_path / "storage_tasks" / "tasks.csv"
-    task = Task("Study Finance", "high", "2026-10-20", category="university")
-
-    append_task(path, task)
-
-    assert path.exists()
-    assert read_tasks(path) == [task]
-
-
-def test_append_task_keeps_existing_tasks(tmp_path: Path) -> None:
-    path = tmp_path / "storage_tasks" / "tasks.csv"
-
-    first = Task("First task", "high")
-    second = Task("Second task", "low")
-
-    append_task(path, first)
-    append_task(path, second)
-
-    assert read_tasks(path) == [first, second]
+from task_manager.storage import delete_task, read_tasks, write_tasks
 
 
 def test_read_tasks_rejects_broken_row_without_changing_file(tmp_path: Path) -> None:
@@ -80,7 +58,7 @@ def test_read_tasks_rejects_invalid_values_without_changing_file(
 def test_write_tasks_replaces_previous_contents(tmp_path: Path) -> None:
     path = tmp_path / "storage_tasks" / "tasks.csv"
 
-    append_task(path, Task("Old task", "low"))
+    write_tasks(path, [Task("Old task", "low")])
 
     new_tasks = [Task("New task", "high", "2026-10-20")]
     write_tasks(path, new_tasks)
@@ -314,7 +292,7 @@ def test_write_and_read_completed_task(tmp_path: Path) -> None:
     )
 
 
-def test_append_recurring_task_keeps_recurrence(tmp_path: Path) -> None:
+def test_write_recurring_task_keeps_recurrence(tmp_path: Path) -> None:
     path = tmp_path / "tasks.csv"
     regular = Task("Buy groceries", "medium")
     recurring = Task(
@@ -326,8 +304,7 @@ def test_append_recurring_task_keeps_recurrence(tmp_path: Path) -> None:
         repeat_until="2026-12-18",
     )
 
-    append_task(path, regular)
-    append_task(path, recurring)
+    write_tasks(path, [regular, recurring])
 
     assert read_tasks(path) == [regular, recurring]
     assert path.read_text(encoding="utf-8").splitlines()[0] == (

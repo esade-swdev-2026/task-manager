@@ -1,5 +1,5 @@
-from task_manager.models import InvalidNumberTasks, Task
-from task_manager.tasks import create_task
+from task_manager.models import Task
+from task_manager.tasks import create_task, get_task
 
 
 def edit_task(
@@ -12,10 +12,7 @@ def edit_task(
 ) -> tuple[Task, list[Task]]:
     """Edit a task and return it with the updated task list."""
 
-    if task_number < 1 or task_number > len(tasks):
-        raise InvalidNumberTasks("Task number does not exist.")
-
-    original_task = tasks[task_number - 1]
+    original_task = get_task(tasks, task_number)
 
     edited_task = create_task(
         title=original_task.title if title is None else title,
