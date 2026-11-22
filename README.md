@@ -171,6 +171,12 @@ Completing an overdue task skips missed dates; the next occurrence may be due
 today, but will not be dated in the past. Reopening and completing a task again
 does not create an identical next occurrence.
 
+If the next scheduled date already has a pending, non-recurring task with the
+same title and priority, that task joins the series and keeps its category.
+When completed, it generates the next occurrence within the original end date.
+If the matching task is already recurring or completed, it is left unchanged
+and no new occurrence is created.
+
 Recurrence intervals are fixed: `daily` repeats every 1 day, `weekly` every 7 days, and `monthly` every 30 days (not a calendar month).
 
 For example, a monthly task due on January 31, 2026, will next be due on March 2, 2026.
@@ -303,7 +309,7 @@ To change a due date:
 uv run task-manager edit --due-date 2026-11-10
 ```
 
-To remove a due date:
+To remove the due date from a non-recurring task:
 
 ```bash
 uv run task-manager edit --due-date ""

@@ -243,3 +243,12 @@ def test_view_tasks_displays_non_default_category() -> None:
         "1. [PENDING] Study Finance - high - category university",
         "2. [PENDING] Buy groceries - low",
     ]
+
+
+def test_calendar_displays_multiline_title_in_one_row() -> None:
+    task = Task(title="Study\nPython", due_date="2026-11-27")
+
+    lines = format_calendar([task], 2026, 11)
+
+    assert any("Study Python" in line for line in lines)
+    assert all("\n" not in line for line in lines)

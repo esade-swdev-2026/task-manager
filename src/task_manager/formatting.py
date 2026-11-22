@@ -145,7 +145,7 @@ def format_calendar(tasks: list[Task], year: int, month: int) -> list[str]:
     rows = [
         (
             task.due_date[-2:],
-            task.title,
+            " ".join(task.title.splitlines()),
             task.status.capitalize(),
             task.priority.capitalize(),
         )
