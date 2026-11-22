@@ -130,6 +130,7 @@ def add(
         help="Task category.",
     ),
 ) -> None:
+    """Add a new task with optional priority, due date, category, and recurrence."""
     data_file = DATA_FILE
 
     try:
@@ -176,6 +177,7 @@ def list_tasks(
         help="Show only tasks in the specified category.",
     ),
 ) -> None:
+    """List saved tasks with optional sorting and filtering."""
     if category is not None and not category.strip():
         typer.echo("Category filter cannot be empty.", err=True)
         raise typer.Exit(1)
@@ -293,6 +295,7 @@ def summary() -> None:
 
 @app.command()
 def delete() -> None:
+    """Delete a task selected by its displayed number."""
     data_file = DATA_FILE
     tasks = load_tasks_or_exit(data_file)
 
