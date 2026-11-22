@@ -43,7 +43,7 @@ def create_task(
         status=normalize_status(status),
         recurrence=normalized_recurrence,
         repeat_until=normalized_repeat_until,
-        category=category,
+        category=category.strip() or "other",
     )
 
 
@@ -150,16 +150,6 @@ def count_tasks_by_priority(tasks: list[Task]) -> dict[str, int]:
     return count_of_priorities
 
 
-def remove_duplicate_tasks(tasks: list[Task]) -> list[Task]:
-    unique_tasks: list[Task] = []
-
-    for task in tasks:
-        if not is_duplicate(task, unique_tasks):
-            unique_tasks.append(task)
-
-    return unique_tasks
-
-
 def is_duplicate(new_task: Task, tasks: list[Task]) -> bool:
     return any(
         task.title == new_task.title
@@ -227,14 +217,22 @@ def complete_task(
         ):
             next_task = replace(original_task, due_date=next_date.isoformat())
 
-            if not any(
-                task.title == next_task.title
-                and task.priority == next_task.priority
-                and task.due_date == next_task.due_date
-                and task.recurrence == next_task.recurrence
-                and task.repeat_until == next_task.repeat_until
-                for task in updated_tasks
-            ):
+            for index, existing_task in enumerate(updated_tasks):
+                if not (
+                    existing_task.title == next_task.title
+                    and existing_task.priority == next_task.priority
+                    and existing_task.due_date == next_task.due_date
+                ):
+                    continue
+
+                if existing_task.recurrence == "none" and existing_task.status == "pending":
+                    updated_tasks[index] = replace(
+                        existing_task,
+                        recurrence=next_task.recurrence,
+                        repeat_until=next_task.repeat_until,
+                    )
+                break
+            else:
                 updated_tasks.append(next_task)
 
     return completed_task, updated_tasks

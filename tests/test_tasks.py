@@ -21,7 +21,6 @@ from task_manager.tasks import (
     get_original_task_number,
     is_duplicate,
     is_overdue,
-    remove_duplicate_tasks,
     reopen_task,
     search_tasks,
     sort_tasks_by_due_date,
@@ -134,54 +133,6 @@ def test_sort_by_due_date_does_not_modify_original() -> None:
     sort_tasks_by_due_date(tasks)
 
     assert tasks == [LATE, EARLY]
-
-
-def test_remove_duplicates_empty() -> None:
-    assert remove_duplicate_tasks([]) == []
-
-
-def test_no_duplicates_remains_unchanged() -> None:
-    tasks = [FINANCE, GYM, GROCERIES]
-
-    assert remove_duplicate_tasks(tasks) == tasks
-
-
-def test_remove_exact_duplicate() -> None:
-    copy = Task("Study Finance", "high", "2026-12-01")
-
-    assert remove_duplicate_tasks([FINANCE, copy]) == [FINANCE]
-
-
-def test_remove_many_duplicates() -> None:
-    assert remove_duplicate_tasks([GYM, GYM, GYM]) == [GYM]
-
-
-def test_remove_duplicates_keeps_order() -> None:
-    result = remove_duplicate_tasks([GYM, FINANCE, GYM, GROCERIES, FINANCE])
-
-    assert result == [GYM, FINANCE, GROCERIES]
-
-
-def test_same_name_different_priority_is_kept() -> None:
-    low_task = Task("Eat Lunch", "low")
-    high_task = Task("Eat Lunch", "high")
-
-    assert remove_duplicate_tasks([low_task, high_task]) == [low_task, high_task]
-
-
-def test_same_name_different_date_is_kept() -> None:
-    first = Task("Same title", "low", "2026-10-01")
-    second = Task("Same title", "low", "2026-10-02")
-
-    assert remove_duplicate_tasks([first, second]) == [first, second]
-
-
-def test_remove_duplicates_does_not_modify_original() -> None:
-    tasks = [GYM, GYM]
-
-    remove_duplicate_tasks(tasks)
-
-    assert tasks == [GYM, GYM]
 
 
 def test_exact_task_is_duplicate() -> None:
@@ -432,21 +383,6 @@ def test_different_due_date_is_not_duplicate() -> None:
     new_task = Task("Study Python", "high", "2026-11-21", "pending")
 
     assert is_duplicate(new_task, existing_tasks) is False
-
-
-def test_remove_duplicates_ignores_status() -> None:
-    tasks = [
-        Task("Study Python", "high", "", "completed"),
-        Task("Study Python", "high", "", "pending"),
-        Task("Buy groceries", "low", "", "pending"),
-    ]
-
-    result = remove_duplicate_tasks(tasks)
-
-    assert result == [
-        Task("Study Python", "high", "", "completed"),
-        Task("Buy groceries", "low", "", "pending"),
-    ]
 
 
 def test_filter_tasks_by_status_preserves_original_tasks() -> None:
@@ -851,3 +787,68 @@ def test_tasks_due_today_only_returns_pending_tasks_due_today() -> None:
     result = tasks_due_today(tasks, today)
 
     assert result == [tasks[0]]
+
+
+def test_complete_recurring_task_adopts_matching_pending_task() -> None:
+    recurring_task = create_task(
+        "Study Python",
+        due_date="2026-11-27",
+        recurrence="weekly",
+        repeat_until="2026-12-18",
+    )
+    manual_task = create_task(
+        "Study Python",
+        due_date="2026-12-04",
+        category="university",
+    )
+
+    completed_task, updated_tasks = complete_task(
+        [recurring_task, manual_task], 1, date(2026, 11, 27)
+    )
+
+    assert completed_task.status == "completed"
+    assert len(updated_tasks) == 2
+
+    adopted_task = updated_tasks[1]
+    assert adopted_task.status == "pending"
+    assert adopted_task.due_date == "2026-12-04"
+    assert adopted_task.category == "university"
+    assert adopted_task.recurrence == "weekly"
+    assert adopted_task.repeat_until == "2026-12-18"
+
+    _, updated_tasks = complete_task(updated_tasks, 2, date(2026, 12, 4))
+
+    assert len(updated_tasks) == 3
+    assert updated_tasks[1].status == "completed"
+    assert updated_tasks[2].due_date == "2026-12-11"
+    assert updated_tasks[2].status == "pending"
+    assert updated_tasks[2].repeat_until == "2026-12-18"
+
+
+@pytest.mark.parametrize(
+    "existing_task",
+    [
+        create_task("Study Python", due_date="2026-12-04", status="completed"),
+        create_task(
+            "Study Python",
+            due_date="2026-12-04",
+            recurrence="daily",
+            repeat_until="2026-12-10",
+        ),
+    ],
+    ids=["completed", "recurring"],
+)
+def test_complete_recurring_task_preserves_existing_match(existing_task: Task) -> None:
+    recurring_task = create_task(
+        "Study Python",
+        due_date="2026-11-27",
+        recurrence="weekly",
+        repeat_until="2026-12-18",
+    )
+
+    completed_task, updated_tasks = complete_task(
+        [recurring_task, existing_task], 1, date(2026, 11, 27)
+    )
+
+    assert completed_task.status == "completed"
+    assert updated_tasks == [completed_task, existing_task]

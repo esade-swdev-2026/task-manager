@@ -1718,3 +1718,24 @@ def test_list_combines_category_priority_and_status(
         "1. [PENDING] Study Finance - high - category university",
     ]
     assert path.read_bytes() == original_contents
+
+
+def test_blank_category_is_saved_as_other(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    data_file = Path("storage_tasks/tasks.csv")
+
+    result = runner.invoke(app, ["add", "Study Finance", "--category", "   "])
+
+    assert result.exit_code == 0
+    assert data_file.read_text(encoding="utf-8").splitlines()[1].endswith(",other")
+
+    result = runner.invoke(app, ["edit", "--category", "university"], input="1\n")
+    assert result.exit_code == 0
+
+    result = runner.invoke(app, ["edit", "--category", ""], input="1\n")
+
+    assert result.exit_code == 0
+    assert data_file.read_text(encoding="utf-8").splitlines()[1].endswith(",other")
