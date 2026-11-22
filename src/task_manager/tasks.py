@@ -169,9 +169,15 @@ def is_duplicate(new_task: Task, tasks: list[Task]) -> bool:
     )
 
 
-def delete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
+def get_task(tasks: list[Task], task_number: int) -> Task:
+    """Return the task at a one-based position, or reject an invalid selection."""
     if task_number < 1 or task_number > len(tasks):
         raise InvalidNumberTasks("Task number does not exist.")
+    return tasks[task_number - 1]
+
+
+def delete_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
+    get_task(tasks, task_number)
 
     remaining_tasks = list(tasks)
 
@@ -185,10 +191,7 @@ def get_original_task_number(
     displayed_tasks: list[Task],
     task_number: int,
 ) -> int:
-    if task_number < 1 or task_number > len(displayed_tasks):
-        raise InvalidNumberTasks("Task number does not exist.")
-
-    selected_task = displayed_tasks[task_number - 1]
+    selected_task = get_task(displayed_tasks, task_number)
 
     for index, task in enumerate(tasks, start=1):
         if task is selected_task:
@@ -204,10 +207,7 @@ def search_tasks(tasks: list[Task], keyword: str) -> list[Task]:
 def complete_task(
     tasks: list[Task], task_number: int, today: date | None = None
 ) -> tuple[Task, list[Task]]:
-    if task_number < 1 or task_number > len(tasks):
-        raise InvalidNumberTasks("Task number does not exist.")
-
-    original_task = tasks[task_number - 1]
+    original_task = get_task(tasks, task_number)
 
     if original_task.status == "completed":
         raise ValueError("Task is already completed.")
@@ -258,10 +258,7 @@ def next_occurrence(due: date, recurrence: str, today: date | None = None) -> da
 
 
 def reopen_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:
-    if task_number < 1 or task_number > len(tasks):
-        raise InvalidNumberTasks("Task number does not exist.")
-
-    original_task = tasks[task_number - 1]
+    original_task = get_task(tasks, task_number)
 
     if original_task.status == "pending":
         raise ValueError("Task is already pending.")

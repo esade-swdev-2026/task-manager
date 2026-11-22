@@ -126,6 +126,20 @@ def test_add_task_default_priority(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert saved_tasks == [Task("Study Finance", "medium", "")]
 
 
+def test_two_add_commands_preserve_existing_task_and_storage_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    first = runner.invoke(app, ["add", "First task", "--priority", "low"])
+    second = runner.invoke(app, ["add", "Second task", "--priority", "high"])
+
+    assert first.exit_code == second.exit_code == 0
+    assert read_tasks(Path("storage_tasks/tasks.csv")) == [
+        Task("First task", "low"),
+        Task("Second task", "high"),
+    ]
+
+
 def test_add_task_with_priority_and_due_date(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

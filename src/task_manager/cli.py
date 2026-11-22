@@ -7,7 +7,7 @@ import typer
 from task_manager.edit_tasks import edit_task
 from task_manager.formatting import format_calendar, format_weekly_review, view_tasks
 from task_manager.models import Task
-from task_manager.storage import append_task, read_tasks, write_tasks
+from task_manager.storage import read_tasks, write_tasks
 from task_manager.tasks import (
     complete_task,
     create_task,
@@ -152,11 +152,7 @@ def add(
         typer.echo("Task already exists.", err=True)
         raise typer.Exit(1)
 
-    try:
-        append_task(data_file, task)
-    except OSError:
-        typer.echo(f"could not write {data_file}", err=True)
-        raise typer.Exit(1) from None
+    save_tasks_or_exit(data_file, [*existing_tasks, task])
 
     typer.echo(f"added {task.title} with {task.priority} priority to {data_file}")
 
