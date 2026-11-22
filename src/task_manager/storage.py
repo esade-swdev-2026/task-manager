@@ -13,9 +13,6 @@ DUE_DATE = 2
 STATUS = 3
 RECURRENCE = 4
 REPEAT_UNTIL = 5
-CATEGORY = 6
-
-FIELDS_PER_ROW = 4
 
 CSV_HEADER = ["title", "priority", "due_date", "status"]
 RECURRING_HEADER = CSV_HEADER + ["recurrence"]

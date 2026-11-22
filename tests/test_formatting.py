@@ -231,3 +231,15 @@ def test_format_weekly_review_without_any_tasks() -> None:
     assert "No tasks due today." in result
     assert "UPCOMING - NEXT 7 DAYS (0)" in result
     assert "No upcoming tasks." in result
+
+
+def test_view_tasks_displays_non_default_category() -> None:
+    tasks = [
+        Task("Study Finance", "high", category="university"),
+        Task("Buy groceries", "low"),
+    ]
+
+    assert view_tasks(tasks, date(2026, 11, 21)) == [
+        "1. [PENDING] Study Finance - high - category university",
+        "2. [PENDING] Buy groceries - low",
+    ]

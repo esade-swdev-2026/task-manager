@@ -1,4 +1,3 @@
-from calendar import monthrange
 from collections.abc import Iterator
 from dataclasses import replace
 from datetime import date, timedelta
@@ -46,6 +45,13 @@ def create_task(
         repeat_until=normalized_repeat_until,
         category=category,
     )
+
+
+def filter_tasks_by_category(tasks: list[Task], category: str) -> list[Task]:
+    """Return tasks matching a category, ignoring case and spaces."""
+    selected_category = category.strip().casefold()
+
+    return [task for task in tasks if task.category.strip().casefold() == selected_category]
 
 
 def filter_tasks_by_status(tasks: list[Task], status: str) -> list[Task]:
@@ -236,32 +242,19 @@ def complete_task(
 
 def next_occurrence(due: date, recurrence: str, today: date | None = None) -> date | None:
     """Find the next scheduled date, skipping missed occurrences when given today."""
-    if recurrence in ("daily", "weekly"):
-        interval = 1 if recurrence == "daily" else 7
-        days_to_today = (today - due).days if today else 0
-        steps = max(1, (days_to_today + interval - 1) // interval)
-        try:
-            return due + timedelta(days=interval * steps)
-        except OverflowError:
-            return None
+    intervals = {"daily": 1, "weekly": 7, "monthly": 30}
 
-    if recurrence == "monthly":
-        months = 1
-        if today and today > due:
-            months = max(1, (today.year - due.year) * 12 + today.month - due.month)
-        while True:
-            month_index = due.year * 12 + due.month - 1 + months
-            year, zero_month = divmod(month_index, 12)
-            if year > 9999:
-                return None
-            candidate = date(
-                year, zero_month + 1, min(due.day, monthrange(year, zero_month + 1)[1])
-            )
-            if today is None or candidate >= today:
-                return candidate
-            months += 1
+    if recurrence not in intervals:
+        raise ValueError("Invalid recurrence.")
 
-    raise ValueError("Invalid recurrence.")
+    interval = intervals[recurrence]
+    days_to_today = (today - due).days if today else 0
+    steps = max(1, (days_to_today + interval - 1) // interval)
+
+    try:
+        return due + timedelta(days=interval * steps)
+    except OverflowError:
+        return None
 
 
 def reopen_task(tasks: list[Task], task_number: int) -> tuple[Task, list[Task]]:

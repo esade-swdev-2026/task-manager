@@ -10,10 +10,10 @@ from task_manager.models import Task
 from task_manager.storage import append_task, read_tasks, write_tasks
 from task_manager.tasks import (
     complete_task,
-    count_tasks_by_priority,
     create_task,
     delete_task,
     filter_overdue_tasks,
+    filter_tasks_by_category,
     filter_tasks_by_priority,
     filter_tasks_by_status,
     get_original_task_number,
@@ -175,7 +175,14 @@ def list_tasks(
         "all",
         help="Show tasks with high, medium, low, or all priorities.",
     ),
+    category: str | None = typer.Option(
+        None,
+        help="Show only tasks in the specified category.",
+    ),
 ) -> None:
+    if category is not None and not category.strip():
+        typer.echo("Category filter cannot be empty.", err=True)
+        raise typer.Exit(1)
     data_file = DATA_FILE
     normalized_sort = sort_by.strip().lower()
 
@@ -216,6 +223,9 @@ def list_tasks(
         return
 
     tasks = filter_tasks_by_priority(tasks, normalized_priority)
+
+    if category is not None:
+        tasks = filter_tasks_by_category(tasks, category)
 
     if not tasks:
         typer.echo("No tasks match the selected filters.")
@@ -356,29 +366,6 @@ def reopen() -> None:
     save_tasks_or_exit(data_file, updated_tasks)
 
     typer.echo(f"reopened {reopened_task.title}")
-
-
-@app.command()
-def priority() -> None:
-    data_file = DATA_FILE
-    tasks = load_tasks_or_exit(data_file)
-
-    counts = count_tasks_by_priority(tasks)
-
-    typer.echo("Tasks by priority:")
-    for priority_level in ("high", "medium", "low"):
-        typer.echo(f"{priority_level.capitalize()}: {counts[priority_level]}")
-
-    if not tasks:
-        typer.echo("No tasks found.")
-        return
-
-    sorted_tasks = sort_tasks_by_priority(tasks)
-
-    typer.echo("\nTasks sorted by priority:")
-
-    for line in view_tasks(sorted_tasks, current_date()):
-        typer.echo(line)
 
 
 @app.command()
