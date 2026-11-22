@@ -3,9 +3,8 @@ import os
 import tempfile
 from pathlib import Path
 
-from task_manager.models import InvalidNumberTasks, Task
+from task_manager.models import Task
 from task_manager.tasks import create_task
-from task_manager.tasks import delete_task as remove_task_from_list
 
 TITLE = 0
 PRIORITY = 1
@@ -121,15 +120,3 @@ def write_tasks(path: Path, tasks: list[Task]) -> None:
     finally:
         if temporary_path is not None:
             temporary_path.unlink(missing_ok=True)
-
-
-def delete_task(path: Path, task_number: int) -> None:
-    """Delete a stored task by its number, starting at 1."""
-    tasks = read_tasks(path)
-
-    try:
-        _, remaining_tasks = remove_task_from_list(tasks, task_number)
-    except InvalidNumberTasks as error:
-        raise ValueError("Task number out of range.") from error
-
-    write_tasks(path, remaining_tasks)
