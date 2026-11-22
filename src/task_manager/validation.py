@@ -9,6 +9,7 @@ from task_manager.models import (
 
 VALID_PRIORITIES = ("low", "medium", "high")
 VALID_STATUSES = ("pending", "completed")
+VALID_RECURRENCES = ("none", "daily", "weekly", "monthly")
 
 
 def normalize_title(title: str) -> str:
@@ -60,7 +61,7 @@ def normalize_status(status: str) -> str:
 def normalize_recurrence(recurrence: str) -> str:
     normalized = recurrence.strip().lower()
 
-    if normalized not in ("none", "daily", "weekly", "monthly"):
+    if normalized not in VALID_RECURRENCES:
         raise ValueError("Invalid recurrence.")
 
     return normalized

@@ -224,6 +224,16 @@ def test_delete_task_rejects_number_too_large() -> None:
         delete_task(tasks, 3)
 
 
+def test_delete_only_task_returns_empty_list() -> None:
+    tasks = [FINANCE]
+
+    deleted_task, remaining_tasks = delete_task(tasks, 1)
+
+    assert deleted_task == FINANCE
+    assert remaining_tasks == []
+    assert tasks == [FINANCE]
+
+
 def test_search_tasks_by_keyword() -> None:
     tasks = [
         create_task("Study Python"),
