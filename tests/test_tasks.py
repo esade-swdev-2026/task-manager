@@ -823,3 +823,32 @@ def test_complete_recurring_task_adopts_matching_pending_task() -> None:
     assert updated_tasks[2].due_date == "2026-12-11"
     assert updated_tasks[2].status == "pending"
     assert updated_tasks[2].repeat_until == "2026-12-18"
+
+
+@pytest.mark.parametrize(
+    "existing_task",
+    [
+        create_task("Study Python", due_date="2026-12-04", status="completed"),
+        create_task(
+            "Study Python",
+            due_date="2026-12-04",
+            recurrence="daily",
+            repeat_until="2026-12-10",
+        ),
+    ],
+    ids=["completed", "recurring"],
+)
+def test_complete_recurring_task_preserves_existing_match(existing_task: Task) -> None:
+    recurring_task = create_task(
+        "Study Python",
+        due_date="2026-11-27",
+        recurrence="weekly",
+        repeat_until="2026-12-18",
+    )
+
+    completed_task, updated_tasks = complete_task(
+        [recurring_task, existing_task], 1, date(2026, 11, 27)
+    )
+
+    assert completed_task.status == "completed"
+    assert updated_tasks == [completed_task, existing_task]
